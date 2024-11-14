@@ -164,17 +164,18 @@ func unzipOracleInstantClient(zipPath, destPath string) string {
 			DEST_PATH = f.Name
 		}
 
-		// If current 'f' ends in '/', then it's a dir, and that dir needs created.
 		var outPath string
 		if f.Name[len(f.Name)-1:] == "/" {
+			// If current 'f' string ends in '/', then it is a dir and that dir needs created.
 			outPath = filepath.Join(destPath, f.Name)
-			fmt.Println("DIR OUTPATH: " + outPath)
 			err := os.MkdirAll(outPath, 0777)
 			if err != nil {
 				log.Fatalf("Impossible to MkdirAll: %s", err)
 			}
 			continue
 		} else {
+			// If current 'f' string does NOT end in '/', check that the 'f' file path (dir) exists
+			// and if not, create that dir - then unzip and copy file to dir
 			re := regexp.MustCompile(`^(.*[\\\/])[^\\\/]*$`)
 			outPath = filepath.Join(destPath, re.ReplaceAllString(f.Name, "$1"))
 			err := os.MkdirAll(outPath, 0777)
@@ -187,10 +188,12 @@ func unzipOracleInstantClient(zipPath, destPath string) string {
 			if err != nil {
 				log.Fatalf("Cannot open file n%d in zip: %s", k, err)
 			}
+
 			unzippedFile, err := os.Create(filepath.Join(destPath, f.Name))
 			if err != nil {
 				log.Fatalf("Impossible to unzip: %s", err)
 			}
+
 			_, err = io.Copy(unzippedFile, rc)
 			if err != nil {
 				log.Fatalf("Cannot copy file n%d: %s", k, err)
