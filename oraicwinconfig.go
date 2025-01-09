@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-const ORAIC_DST_PATH = "C:\\OraClientTEST"
+const ORAIC_DST_PATH = "C:\\OraClient"
 const ORAIC_PKG_NAME = "instantclient-basiclite-windows.zip"
 const ORAIC_SDK_NAME = "instantclient-sdk-windows.zip"
 const ORAIC_BASE_URL = "https://download.oracle.com/otn_software/nt/instantclient/"
@@ -294,4 +294,8 @@ func InstallOracleInstantClient(downloadPath, installPath string) {
 	setEnvironmentVariable("OCI_LIB64", OCI_LIB64_ENVAR)
 	setEnvironmentVariable("TNS_ADMIN", TNS_ADMIN_ENVAR)
 	setEnvironmentVariable("PATH", OCI_LIB64_ENVAR)
+
+	// Wait for user input
+	fmt.Println("Oracle InstantClient Installation Completed. Press any key to escape...")
+	fmt.Scanln()
 }
