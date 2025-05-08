@@ -213,8 +213,7 @@ func setEnvironmentVariable(usrEnvVar, envVarPath string) {
 			needToAdd = true
 		}
 	case "PATH":
-		res := strings.Contains(currUsrVarStr, envVarPath)
-		if res {
+		if strings.Contains(currUsrVarStr, envVarPath) {
 			fmt.Println(envVarPath + " already exists in User PATH Variable. No changes made.")
 			needToAdd = false
 		} else {
@@ -287,13 +286,14 @@ func InstallOracleInstantClient(downloadPath, installPath string) {
 		os.Exit(1)
 	}
 
-	OCI_LIB64_ENVAR := filepath.Join(installPath, ORAIC_PKG_TLD)
-	fmt.Println("OCI_LIB64_ENVAR: " + OCI_LIB64_ENVAR)
-	TNS_ADMIN_ENVAR := filepath.Join(OCI_LIB64_ENVAR, "network", "admin")
-	fmt.Println("TNS_ADMIN_ENVAR: " + TNS_ADMIN_ENVAR)
-	setEnvironmentVariable("OCI_LIB64", OCI_LIB64_ENVAR)
-	setEnvironmentVariable("TNS_ADMIN", TNS_ADMIN_ENVAR)
-	setEnvironmentVariable("PATH", OCI_LIB64_ENVAR)
+	ENVARPATH_OCI_LIB64 := filepath.Join(installPath, ORAIC_PKG_TLD)
+	fmt.Println("OCI_LIB64_ENVARPATH: " + ENVARPATH_OCI_LIB64)
+	setEnvironmentVariable("OCI_LIB64", ENVARPATH_OCI_LIB64)
+	setEnvironmentVariable("PATH", ENVARPATH_OCI_LIB64)
+
+	ENVARPATH_TNS_ADMIN := filepath.Join(ENVARPATH_OCI_LIB64, "network", "admin")
+	fmt.Println("TNS_ADMIN_ENVARPATH: " + ENVARPATH_TNS_ADMIN)
+	setEnvironmentVariable("TNS_ADMIN", ENVARPATH_TNS_ADMIN)
 
 	// Wait for user input
 	fmt.Println("Oracle InstantClient Installation Complete!\nPress any key to escape...")
