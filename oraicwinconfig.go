@@ -238,7 +238,11 @@ func setEnvironmentVariable(usrEnvVar, envVarPath string) {
 			if err != nil {
 				panic(err)
 			}
-			envVarDir = strings.TrimSuffix(string(usrPath), "\r\n") + envVarPath + ";"
+			if string(usrPath)[len(string(usrPath))-1:] == ";" {
+				envVarDir = strings.TrimSuffix(string(usrPath), "\r\n") + envVarPath + ";"
+			} else {
+				envVarDir = strings.TrimSuffix(string(usrPath), "\r\n") + ";" + envVarPath + ";"
+			}
 			fmt.Println("\t" + usrEnvVar + "=" + envVarDir)
 		default:
 			fmt.Println("Error: no known handle for " + usrEnvVar)
