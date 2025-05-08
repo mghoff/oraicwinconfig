@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-const ORAIC_DST_PATH = "C:\\OraClient"
+const ORAIC_DST_PATH = "C:/OraClient"
 const ORAIC_PKG_NAME = "instantclient-basiclite-windows.zip"
 const ORAIC_SDK_NAME = "instantclient-sdk-windows.zip"
 const ORAIC_BASE_URL = "https://download.oracle.com/otn_software/nt/instantclient/"
@@ -279,9 +279,9 @@ func InstallOracleInstantClient(downloadPath, installPath string) {
 
 	// Verify version match
 	if ORAIC_PKG_TLD == ORAIC_SDK_TLD {
-		fmt.Println("Oracle instant client pkg and sdk versions match. Continuing...")
+		fmt.Println("Oracle Instant Client PKG and SDK versions match. Continuing...")
 	} else {
-		fmt.Println("Oracle instant client pkg and sdk versions DO NOT match. Exiting...")
+		fmt.Println("Oracle Instant Client PKG and SDK versions DO NOT match. Exiting...")
 		fmt.Println("    ORAIC_PKG_TLD: " + ORAIC_PKG_TLD)
 		fmt.Println("    ORAIC_SDK_TLD: " + ORAIC_SDK_TLD)
 		os.Exit(1)
@@ -296,6 +296,6 @@ func InstallOracleInstantClient(downloadPath, installPath string) {
 	setEnvironmentVariable("PATH", OCI_LIB64_ENVAR)
 
 	// Wait for user input
-	fmt.Println("Oracle InstantClient Installation Completed. Press any key to escape...")
+	fmt.Println("Oracle InstantClient Installation Complete!\nPress any key to escape...")
 	fmt.Scanln()
 }
