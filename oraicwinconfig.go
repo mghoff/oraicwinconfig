@@ -27,17 +27,17 @@ func main() {
 	fmt.Println("-", ORAIC_PKG_NAME)
 	fmt.Println("-", ORAIC_SDK_NAME)
 
-	OK_DEFAULT_INSTALL := askInstallOK("Accept the default install location?\n - " + ORAIC_DST_PATH + "\nSelect")
+	OK_DEFAULT_INSTALL := reqUserConfirmation("Accept the default install location?\n - " + ORAIC_DST_PATH + "\nSelect")
 	if !OK_DEFAULT_INSTALL {
-		CHANGE_DEFAULT_INSTALL := askChangeDefaultInstall("Change the default install location from '" + ORAIC_DST_PATH + "'? Select")
+		CHANGE_DEFAULT_INSTALL := reqUserConfirmation("Change the default install location from '" + ORAIC_DST_PATH + "'? Select")
 		if !CHANGE_DEFAULT_INSTALL {
-			CONT_DEFAULT_INSTALL := askChangeDefaultInstall("Continue with install? Select")
+			CONT_DEFAULT_INSTALL := reqUserConfirmation("Continue with install? Select")
 			if !CONT_DEFAULT_INSTALL {
 				os.Exit(1)
 			}
 		} else {
-			ORAIC_DST_PATH := askNewInstallPath("Enter desired install path...\n")
-			OK_INSTALL := askInstallOK("Continue with install to '" + ORAIC_DST_PATH + "'? Select")
+			ORAIC_DST_PATH := reqUserInstallPath("Enter desired install path...\n")
+			OK_INSTALL := reqUserConfirmation("Continue with install to '" + ORAIC_DST_PATH + "'? Select")
 			if !OK_INSTALL {
 				os.Exit(1)
 			}
@@ -59,43 +59,25 @@ func getUserDestPath(dirEndpoint string) string {
 	return dir
 }
 
-func askInstallOK(label string) bool {
+func reqUserConfirmation(label string) bool {
 	choices := "y/n"
 	r := bufio.NewReader(os.Stdin)
-	var s string
 	for {
 		fmt.Fprintf(os.Stderr, "%s (%s): ", label, choices)
-		s, _ = r.ReadString('\n')
+		s, _ := r.ReadString('\n')
 		s = strings.ToLower(strings.TrimSpace(s))
-		if s != "y" && s != "n" {
-			panic("Must enter 'y' or 'n'.")
-		} else if s == "y" {
+		switch s {
+		case "y":
 			return true
-		} else {
+		case "n":
 			return false
+		default:
+			fmt.Println("Must enter 'y' or 'n'")
 		}
 	}
 }
 
-func askChangeDefaultInstall(label string) bool {
-	choices := "y/n"
-	r := bufio.NewReader(os.Stdin)
-	var s string
-	for {
-		fmt.Fprintf(os.Stderr, "%s (%s): ", label, choices)
-		s, _ = r.ReadString('\n')
-		s = strings.ToLower(strings.TrimSpace(s))
-		if s != "y" && s != "n" {
-			panic("Must enter 'y' or 'n'.")
-		} else if s == "y" {
-			return true
-		} else {
-			return false
-		}
-	}
-}
-
-func askNewInstallPath(label string) string {
+func reqUserInstallPath(label string) string {
 	r := bufio.NewReader(os.Stdin)
 	var path string
 	for {
@@ -292,12 +274,12 @@ func InstallOracleInstantClient(downloadPath, installPath string) {
 
 	ENVARPATH_OCI_LIB64 := filepath.Join(installPath, ORAIC_PKG_TLD)
 	fmt.Println("OCI_LIB64_ENVARPATH: " + ENVARPATH_OCI_LIB64)
-	setEnvironmentVariable("OCI_LIB64", ENVARPATH_OCI_LIB64)
-	setEnvironmentVariable("PATH", ENVARPATH_OCI_LIB64)
+	// setEnvironmentVariable("OCI_LIB64", ENVARPATH_OCI_LIB64)
+	// setEnvironmentVariable("PATH", ENVARPATH_OCI_LIB64)
 
 	ENVARPATH_TNS_ADMIN := filepath.Join(ENVARPATH_OCI_LIB64, "network", "admin")
 	fmt.Println("TNS_ADMIN_ENVARPATH: " + ENVARPATH_TNS_ADMIN)
-	setEnvironmentVariable("TNS_ADMIN", ENVARPATH_TNS_ADMIN)
+	// setEnvironmentVariable("TNS_ADMIN", ENVARPATH_TNS_ADMIN)
 
 	// Wait for user input
 	fmt.Println("Oracle InstantClient Installation Complete!\nPress any key to escape...")
