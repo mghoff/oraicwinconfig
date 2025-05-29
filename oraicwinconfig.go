@@ -14,10 +14,12 @@ import (
 	"strings"
 )
 
-const ORAIC_DST_PATH = "C:/OraClient"
-const ORAIC_PKG_NAME = "instantclient-basiclite-windows.zip"
-const ORAIC_SDK_NAME = "instantclient-sdk-windows.zip"
-const ORAIC_BASE_URL = "https://download.oracle.com/otn_software/nt/instantclient/"
+const (
+	ORAIC_DST_PATH = "C:/OraClient"
+	ORAIC_PKG_NAME = "instantclient-basiclite-windows.zip"
+	ORAIC_SDK_NAME = "instantclient-sdk-windows.zip"
+	ORAIC_BASE_URL = "https://download.oracle.com/otn_software/nt/instantclient/"
+)
 
 func main() {
 	USER_DOWNLOADS := getUserDestPath("Downloads")
@@ -64,8 +66,7 @@ func askInstallOK(label string) bool {
 	for {
 		fmt.Fprintf(os.Stderr, "%s (%s): ", label, choices)
 		s, _ = r.ReadString('\n')
-		s = strings.TrimSpace(s)
-		s = strings.ToLower(s)
+		s = strings.ToLower(strings.TrimSpace(s))
 		if s != "y" && s != "n" {
 			panic("Must enter 'y' or 'n'.")
 		} else if s == "y" {
@@ -83,8 +84,7 @@ func askChangeDefaultInstall(label string) bool {
 	for {
 		fmt.Fprintf(os.Stderr, "%s (%s): ", label, choices)
 		s, _ = r.ReadString('\n')
-		s = strings.TrimSpace(s)
-		s = strings.ToLower(s)
+		s = strings.ToLower(strings.TrimSpace(s))
 		if s != "y" && s != "n" {
 			panic("Must enter 'y' or 'n'.")
 		} else if s == "y" {
