@@ -14,48 +14,97 @@ import (
 	"strings"
 )
 
+// Configuration constants
 const (
-	ORAIC_DST_PATH = "C:/OraClient"
-	ORAIC_PKG_NAME = "instantclient-basiclite-windows.zip"
-	ORAIC_SDK_NAME = "instantclient-sdk-windows.zip"
-	ORAIC_BASE_URL = "https://download.oracle.com/otn_software/nt/instantclient/"
+	OraicDstPath = "C:/OraClient"
+	OraicPkgName = "instantclient-basiclite-windows.zip"
+	OraicSdkName = "instantclient-sdk-windows.zip"
+	OraicBaseUrl = "https://download.oracle.com/otn_software/nt/instantclient/"
 )
 
-func main() {
-	USER_DOWNLOADS := getUserDestPath("Downloads")
-	fmt.Println("The following .zip files will be downloaded from", "'"+ORAIC_BASE_URL+"'", "to", "'"+USER_DOWNLOADS+"'")
-	fmt.Println("-", ORAIC_PKG_NAME)
-	fmt.Println("-", ORAIC_SDK_NAME)
+// Error type definition
+type ErrorType int
 
-	OK_DEFAULT_INSTALL := reqUserConfirmation("Accept the default install location?\n - " + ORAIC_DST_PATH + "\nSelect")
-	if !OK_DEFAULT_INSTALL {
-		CHANGE_DEFAULT_INSTALL := reqUserConfirmation("Change the default install location from '" + ORAIC_DST_PATH + "'? Select")
-		if !CHANGE_DEFAULT_INSTALL {
-			CONT_DEFAULT_INSTALL := reqUserConfirmation("Continue with install? Select")
-			if !CONT_DEFAULT_INSTALL {
-				log.Fatal("Installation aborted by user.")
+// Error type definitions
+const (
+	ErrorTypeDownload ErrorType = iota
+	ErrorTypeInstall
+	ErrorTypeEnvironment
+	ErrorTypeValidation
+	ErrorTypeUserPath
+)
+
+// InstallError represents a contextual error during installation
+type InstallError struct {
+	Type      ErrorType
+	Operation string
+	Err       error
+}
+
+func (e *InstallError) Error() string {
+	return fmt.Sprintf("%s: %v", e.Operation, e.Err)
+}
+
+func (e *InstallError) Unwrap() error {
+	return e.Err
+}
+
+// handleError creates a new InstallError with context
+func handleError(err error, errorType ErrorType, operation string) error {
+	if err != nil {
+		return &InstallError{
+			Type:      errorType,
+			Operation: operation,
+			Err:       err,
+		}
+	}
+	return nil
+}
+
+func main() {
+	userDownloads, err := getUserDestPath("Downloads")
+	if err != nil {
+		log.Fatal("Error getting user Downloads directory: ", err)
+	}
+	fmt.Println("The following .zip files will be downloaded from", "'"+OraicBaseUrl+"'", "to", "'"+userDownloads+"'")
+	fmt.Println("-", OraicPkgName)
+	fmt.Println("-", OraicSdkName)
+
+	okDefaultInstall := reqUserConfirmation("Accept the default install location?\n - " + OraicDstPath + "\nSelect")
+	if !okDefaultInstall {
+		changeDefaultInstall := reqUserConfirmation("Change the default install location from '" + OraicDstPath + "'? Select")
+		if !changeDefaultInstall {
+			continueInstall := reqUserConfirmation("Continue with install? Select")
+			if !continueInstall {
+				handleError(fmt.Errorf("installation aborted by user"), ErrorTypeValidation, "user confirmation")
+				log.Fatal("installation aborted by user.")
 			}
 		} else {
-			ORAIC_DST_PATH := reqUserInstallPath("Enter desired install path...\n")
-			OK_INSTALL := reqUserConfirmation("Continue with install to '" + ORAIC_DST_PATH + "'? Select")
-			if !OK_INSTALL {
-				log.Fatal("Installation aborted by user.")
+			OraicDstPath := reqUserInstallPath("Enter desired install path...\n")
+			continueInstall := reqUserConfirmation("Continue with install to '" + OraicDstPath + "'? Select")
+			if !continueInstall {
+				handleError(fmt.Errorf("installation aborted by user"), ErrorTypeValidation, "user confirmation")
+				log.Fatal("installation aborted by user.")
 			}
 		}
 	}
-	InstallOracleInstantClient(USER_DOWNLOADS, ORAIC_DST_PATH)
+	InstallOracleInstantClient(userDownloads, OraicDstPath)
 }
 
-func getUserDestPath(dirEndpoint string) string {
+func getUserDestPath(dirEndpoint string) (string, error) {
 	usrDir, err := exec.Command("powershell", "$env:USERPROFILE").Output()
 	if err != nil {
-		log.Fatal("Error getting user profile directory: ", err)
+		return "", handleError(err, ErrorTypeUserPath, "getting user profile directory")
 	}
+
 	dir := filepath.Join(strings.TrimSuffix(string(usrDir), "\r\n"), dirEndpoint)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return "", handleError(fmt.Errorf("directory does not exist: %s", dir), ErrorTypeUserPath, "checking user profile directory")
+	} else if err != nil {
 		log.Fatal("User profile directory does not exist: ", dir)
 	}
-	return dir
+
+	return dir, nil
 }
 
 func reqUserConfirmation(label string) bool {
@@ -97,24 +146,24 @@ func downloadOracleInstantClient(url, dest string) error {
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatal("Error downloading Oracle Instant Client: ", err)
+		return handleError(err, ErrorTypeDownload, "downloading from URL")
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Error while downloading: %s", resp.Status)
+		return handleError(fmt.Errorf("HTTP status %s", resp.Status), ErrorTypeDownload, "checking response status")
 	}
 	defer resp.Body.Close()
 
 	// Create file
 	out, err := os.Create(dest)
 	if err != nil {
-		log.Fatalf("Error creating file %s: %v", dest, err)
+		return handleError(err, ErrorTypeDownload, "creating download file")
 	}
 	defer out.Close()
 
 	// Write response body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		log.Fatal("Error writing to file: ", err)
+		return handleError(err, ErrorTypeDownload, "writing download to file")
 	}
 	return nil
 }
@@ -123,25 +172,25 @@ func unzipOracleInstantClient(zipPath, destPath string) string {
 	// Create base folder
 	err := os.MkdirAll(destPath, 0777)
 	if err != nil {
-		log.Fatalf("Error creating base directory: %s", err)
-		return ""
+		handleError(err, ErrorTypeInstall, "creating base directory")
+		log.Fatalf("error creating base directory: %s", err)
 	}
 
 	// Open a zip archive for reading.
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		log.Fatal("Error opening zip file: ", err)
-		return ""
+		handleError(err, ErrorTypeInstall, "opening zip archive")
+		log.Fatal("error opening zip archive: ", err)
 	}
 	defer r.Close()
 
 	// Iterate through the files in the archive, printing some of their contents.
-	var DEST_PATH string
+	var outDestPath string
 	for k, f := range r.File {
 		re := regexp.MustCompilePOSIX(`^(instantclient_){1}([0-9]{1,2})_([0-9]{1,2})\/$`)
 		matched := re.Match([]byte(f.Name))
 		if matched {
-			DEST_PATH = f.Name
+			outDestPath = f.Name
 		}
 
 		// If current 'f' ends in '/', then it's a dir, and that dir needs created.
@@ -177,7 +226,7 @@ func unzipOracleInstantClient(zipPath, destPath string) string {
 			}
 		}
 	}
-	return DEST_PATH
+	return outDestPath
 }
 
 func setEnvironmentVariable(usrEnvVar, envVarPath string) {
@@ -250,41 +299,42 @@ func setEnvironmentVariable(usrEnvVar, envVarPath string) {
 
 func InstallOracleInstantClient(downloadPath, installPath string) {
 	// Set paths for filename download locations
-	ORAIC_PKG_ZIP_LOCATION := filepath.Join(downloadPath, ORAIC_PKG_NAME)
-	ORAIC_SDK_ZIP_LOCATION := filepath.Join(downloadPath, ORAIC_SDK_NAME)
-	ORAIC_PKG_URL := ORAIC_BASE_URL + ORAIC_PKG_NAME
-	ORAIC_SDK_URL := ORAIC_BASE_URL + ORAIC_SDK_NAME
+	oraicPkgZipLoc := filepath.Join(downloadPath, OraicPkgName)
+	oraicSdkZipLoc := filepath.Join(downloadPath, OraicSdkName)
+	// Set paths for Oracle Instant Client PKG & SDK URLs
+	oraicPkgUrl := OraicBaseUrl + OraicPkgName
+	oraicSdkUrl := OraicBaseUrl + OraicSdkName
 
 	// Download LATEST Oracle Instant Client PKG & SDK
-	fmt.Println("Downloading PKG ZIP: " + ORAIC_PKG_ZIP_LOCATION + "...")
-	downloadOracleInstantClient(ORAIC_PKG_URL, ORAIC_PKG_ZIP_LOCATION)
-	fmt.Println("Downloaded SDK ZIP: " + ORAIC_SDK_ZIP_LOCATION + "...")
-	downloadOracleInstantClient(ORAIC_SDK_URL, ORAIC_SDK_ZIP_LOCATION)
+	fmt.Println("Downloading PKG ZIP: " + oraicPkgZipLoc + "...")
+	downloadOracleInstantClient(oraicPkgUrl, oraicPkgZipLoc)
+	fmt.Println("Downloaded SDK ZIP: " + oraicSdkZipLoc + "...")
+	downloadOracleInstantClient(oraicSdkUrl, oraicSdkZipLoc)
 
-	// Unzip Oracle Instant Client PKG & SDK (NOTE: '*_TLD' short for 'Top Level Directory')
-	fmt.Println("Unzipping: " + ORAIC_PKG_ZIP_LOCATION + " to " + installPath)
-	ORAIC_PKG_TLD := unzipOracleInstantClient(ORAIC_PKG_ZIP_LOCATION, installPath)
-	fmt.Println("Unzipping:", ORAIC_SDK_ZIP_LOCATION)
-	ORAIC_SDK_TLD := unzipOracleInstantClient(ORAIC_SDK_ZIP_LOCATION, installPath)
+	// Unzip Oracle Instant Client PKG & SDK (NOTE: '*_Tld' short for 'Top Level Directory')
+	fmt.Println("Unzipping: " + oraicPkgZipLoc + " to " + installPath)
+	oraicPkgTld := unzipOracleInstantClient(oraicPkgZipLoc, installPath)
+	fmt.Println("Unzipping:", oraicSdkZipLoc)
+	oraicSkdTld := unzipOracleInstantClient(oraicSdkZipLoc, installPath)
 
 	// Verify version match
-	if ORAIC_PKG_TLD == ORAIC_SDK_TLD {
+	if oraicPkgTld == oraicSkdTld {
 		fmt.Println("Oracle Instant Client PKG and SDK versions match. Continuing...")
 	} else {
 		fmt.Println("Oracle Instant Client PKG and SDK versions DO NOT match. Exiting...")
-		fmt.Println("    ORAIC_PKG_TLD: " + ORAIC_PKG_TLD)
-		fmt.Println("    ORAIC_SDK_TLD: " + ORAIC_SDK_TLD)
+		fmt.Println("    ORAIC_PKG_TLD: " + oraicPkgTld)
+		fmt.Println("    ORAIC_SDK_TLD: " + oraicSkdTld)
 		os.Exit(1)
 	}
 
-	ENVARPATH_OCI_LIB64 := filepath.Join(installPath, ORAIC_PKG_TLD)
-	fmt.Println("OCI_LIB64_ENVARPATH: " + ENVARPATH_OCI_LIB64)
-	setEnvironmentVariable("OCI_LIB64", ENVARPATH_OCI_LIB64)
-	setEnvironmentVariable("PATH", ENVARPATH_OCI_LIB64)
+	evpOCILib64 := filepath.Join(installPath, oraicPkgTld)
+	fmt.Println("OCI_LIB64_ENVARPATH: " + evpOCILib64)
+	setEnvironmentVariable("OCI_LIB64", evpOCILib64)
+	setEnvironmentVariable("PATH", evpOCILib64)
 
-	ENVARPATH_TNS_ADMIN := filepath.Join(ENVARPATH_OCI_LIB64, "network", "admin")
-	fmt.Println("TNS_ADMIN_ENVARPATH: " + ENVARPATH_TNS_ADMIN)
-	setEnvironmentVariable("TNS_ADMIN", ENVARPATH_TNS_ADMIN)
+	evpTNSAdmin := filepath.Join(evpOCILib64, "network", "admin")
+	fmt.Println("TNS_ADMIN_ENVARPATH: " + evpTNSAdmin)
+	setEnvironmentVariable("TNS_ADMIN", evpTNSAdmin)
 
 	// Wait for user input
 	fmt.Println("Oracle InstantClient Installation Complete!\nPress any key to escape...")
