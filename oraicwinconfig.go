@@ -33,13 +33,13 @@ func main() {
 		if !CHANGE_DEFAULT_INSTALL {
 			CONT_DEFAULT_INSTALL := reqUserConfirmation("Continue with install? Select")
 			if !CONT_DEFAULT_INSTALL {
-				os.Exit(1)
+				log.Fatal("Installation aborted by user.")
 			}
 		} else {
 			ORAIC_DST_PATH := reqUserInstallPath("Enter desired install path...\n")
 			OK_INSTALL := reqUserConfirmation("Continue with install to '" + ORAIC_DST_PATH + "'? Select")
 			if !OK_INSTALL {
-				os.Exit(1)
+				log.Fatal("Installation aborted by user.")
 			}
 		}
 	}
@@ -49,12 +49,11 @@ func main() {
 func getUserDestPath(dirEndpoint string) string {
 	usrDir, err := exec.Command("powershell", "$env:USERPROFILE").Output()
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Fatal("Error getting user profile directory: ", err)
 	}
 	dir := filepath.Join(strings.TrimSuffix(string(usrDir), "\r\n"), dirEndpoint)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		fmt.Println(dir, "does not exist.")
-		os.Exit(1)
+		log.Fatal("User profile directory does not exist: ", dir)
 	}
 	return dir
 }
@@ -84,25 +83,27 @@ func reqUserInstallPath(label string) string {
 		fmt.Fprintf(os.Stderr, "%s", label)
 		path, _ = r.ReadString('\n')
 		path = strings.TrimSpace(path)
-		if stat, err := os.Stat(path); err == nil && stat.IsDir() {
+		if stat, err := os.Stat(path); stat.IsDir() && err == nil {
 			return path
 		} else {
-			panic("Path provided either does not exist or is not a directory!")
+			log.Fatal("Invalid path provided: ", path)
+			fmt.Println("Please provide a valid directory path.")
+			continue
 		}
 	}
 }
 
-func downloadOracleInstantClient(url, dest string) (err error) {
+func downloadOracleInstantClient(url, dest string) error {
 	// Create file
 	out, err := os.Create(dest)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Error creating file %s: %v", dest, err)
 	}
 	defer out.Close()
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
-		panic(err)
+		log.Fatal("Error downloading Oracle Instant Client: ", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("Error while downloading: %s", resp.Status)
@@ -111,7 +112,7 @@ func downloadOracleInstantClient(url, dest string) (err error) {
 	// Write response body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		panic(err)
+		log.Fatal("Error writing to file: ", err)
 	}
 	return nil
 }
@@ -120,13 +121,15 @@ func unzipOracleInstantClient(zipPath, destPath string) string {
 	// Create base folder
 	err := os.MkdirAll(destPath, 0777)
 	if err != nil {
-		log.Fatalf("Impossible to make base dir: %s", err)
+		log.Fatalf("Error creating base directory: %s", err)
+		return ""
 	}
 
 	// Open a zip archive for reading.
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		panic(err)
+		log.Fatal("Error opening zip file: ", err)
+		return ""
 	}
 	defer r.Close()
 
@@ -180,7 +183,7 @@ func setEnvironmentVariable(usrEnvVar, envVarPath string) {
 	psGetEnvCmd := "[System.Environment]::GetEnvironmentVariable('" + usrEnvVar + "', 'User')"
 	currUsrVar, err := exec.Command("powershell", psGetEnvCmd).Output()
 	if err != nil {
-		panic(err)
+		log.Fatal("Error getting current User Environment Variable: ", err)
 	}
 	currUsrVarStr := strings.TrimSuffix(string(currUsrVar), "\r\n")
 
@@ -203,8 +206,8 @@ func setEnvironmentVariable(usrEnvVar, envVarPath string) {
 			needToAdd = true
 		}
 	default:
-		fmt.Println("Error: no known handle for " + usrEnvVar)
-		os.Exit(1)
+		log.Fatal("Error: no known handle for " + usrEnvVar)
+		needToAdd = false
 	}
 
 	// If needed, add new Environment Variable or new path to the Path environment variable
@@ -218,7 +221,7 @@ func setEnvironmentVariable(usrEnvVar, envVarPath string) {
 			psGetEnvCmd := "[System.Environment]::GetEnvironmentVariable('" + usrEnvVar + "', 'User')"
 			usrPath, err := exec.Command("powershell", psGetEnvCmd).Output()
 			if err != nil {
-				panic(err)
+				log.Fatal("Error getting current User PATH Environment Variable: ", err)
 			}
 			if string(usrPath)[len(string(usrPath))-1:] == ";" {
 				envVarDir = strings.TrimSuffix(string(usrPath), "\r\n") + envVarPath + ";"
@@ -227,14 +230,14 @@ func setEnvironmentVariable(usrEnvVar, envVarPath string) {
 			}
 			fmt.Println("\t" + usrEnvVar + "=" + envVarDir)
 		default:
-			fmt.Println("Error: no known handle for " + usrEnvVar)
-			os.Exit(1)
+			log.Fatal("Error: no known handle for " + usrEnvVar)
+			return
 		}
 
 		psSetEnvCmd := "[Environment]::SetEnvironmentVariable('" + usrEnvVar + "', '" + envVarDir + "' , 'User')"
 		_, err := exec.Command("powershell", psSetEnvCmd).Output()
 		if err != nil {
-			panic(err)
+			log.Fatal("Error setting User Environment Variable: ", err)
 		}
 		_, exists := os.LookupEnv(usrEnvVar)
 		if exists {
@@ -274,12 +277,12 @@ func InstallOracleInstantClient(downloadPath, installPath string) {
 
 	ENVARPATH_OCI_LIB64 := filepath.Join(installPath, ORAIC_PKG_TLD)
 	fmt.Println("OCI_LIB64_ENVARPATH: " + ENVARPATH_OCI_LIB64)
-	// setEnvironmentVariable("OCI_LIB64", ENVARPATH_OCI_LIB64)
-	// setEnvironmentVariable("PATH", ENVARPATH_OCI_LIB64)
+	setEnvironmentVariable("OCI_LIB64", ENVARPATH_OCI_LIB64)
+	setEnvironmentVariable("PATH", ENVARPATH_OCI_LIB64)
 
 	ENVARPATH_TNS_ADMIN := filepath.Join(ENVARPATH_OCI_LIB64, "network", "admin")
 	fmt.Println("TNS_ADMIN_ENVARPATH: " + ENVARPATH_TNS_ADMIN)
-	// setEnvironmentVariable("TNS_ADMIN", ENVARPATH_TNS_ADMIN)
+	setEnvironmentVariable("TNS_ADMIN", ENVARPATH_TNS_ADMIN)
 
 	// Wait for user input
 	fmt.Println("Oracle InstantClient Installation Complete!\nPress any key to escape...")
