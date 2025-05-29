@@ -94,12 +94,6 @@ func reqUserInstallPath(label string) string {
 }
 
 func downloadOracleInstantClient(url, dest string) error {
-	// Create file
-	out, err := os.Create(dest)
-	if err != nil {
-		log.Fatalf("Error creating file %s: %v", dest, err)
-	}
-	defer out.Close()
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
@@ -109,6 +103,14 @@ func downloadOracleInstantClient(url, dest string) error {
 		log.Fatalf("Error while downloading: %s", resp.Status)
 	}
 	defer resp.Body.Close()
+
+	// Create file
+	out, err := os.Create(dest)
+	if err != nil {
+		log.Fatalf("Error creating file %s: %v", dest, err)
+	}
+	defer out.Close()
+
 	// Write response body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
