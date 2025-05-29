@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -14,13 +15,70 @@ import (
 	"strings"
 )
 
+func main() {
+	config := NewDefaultConfig()
+
+	downloads, err := getUserDestPath("Downloads")
+	if err != nil {
+		log.Fatal("error getting user Downloads directory: ", err)
+	}
+	config.DownloadsPath = downloads
+
+	fmt.Printf("files will be downloaded from '%s' to '%s':\n", config.BaseURL, config.DownloadsPath)
+	fmt.Printf("- %s\n- %s\n", config.PkgFile, config.SdkFile)
+
+	// Handle installation path selection
+	if err := handleInstallLocation(config); err != nil {
+		log.Fatal("error handling install location: ", err)
+	}
+
+	// Perform installation
+	if err := InstallOracleInstantClient(config); err != nil {
+		var installErr *InstallError
+		if errors.As(err, &installErr) {
+			switch installErr.Type {
+			case ErrorTypeDownload:
+				log.Fatal("download failed: ", err)
+			case ErrorTypeInstall:
+				log.Fatal("installation failed: ", err)
+			case ErrorTypeEnvironment:
+				log.Fatal("environment setup failed: ", err)
+			default:
+				log.Fatal("unknown error: ", err)
+			}
+		}
+		log.Fatal("installation failed: ", err)
+	}
+
+	fmt.Println("installation completed successfully")
+}
+
 // Configuration constants
 const (
-	OraicDstPath = "C:/OraClient"
-	OraicPkgName = "instantclient-basiclite-windows.zip"
-	OraicSdkName = "instantclient-sdk-windows.zip"
-	OraicBaseUrl = "https://download.oracle.com/otn_software/nt/instantclient/"
+	defaultInstallPath = "C:/OraClient"
+	pkgFileName        = "instantclient-basiclite-windows.zip"
+	sdkFileName        = "instantclient-sdk-windows.zip"
+	baseDownloadURL    = "https://download.oracle.com/otn_software/nt/instantclient/"
 )
+
+// InstallConfig holds all installation configuration
+type InstallConfig struct {
+	InstallPath   string
+	DownloadsPath string
+	PkgFile       string
+	SdkFile       string
+	BaseURL       string
+}
+
+// NewDefaultConfig creates a new configuration with default values
+func NewDefaultConfig() *InstallConfig {
+	return &InstallConfig{
+		InstallPath: defaultInstallPath,
+		PkgFile:     pkgFileName,
+		SdkFile:     sdkFileName,
+		BaseURL:     baseDownloadURL,
+	}
+}
 
 // Error type definition
 type ErrorType int
@@ -61,34 +119,76 @@ func handleError(err error, errorType ErrorType, operation string) error {
 	return nil
 }
 
-func main() {
-	userDownloads, err := getUserDestPath("Downloads")
-	if err != nil {
-		log.Fatal("Error getting user Downloads directory: ", err)
-	}
-	fmt.Println("The following .zip files will be downloaded from", "'"+OraicBaseUrl+"'", "to", "'"+userDownloads+"'")
-	fmt.Println("-", OraicPkgName)
-	fmt.Println("-", OraicSdkName)
+// EnvVarManager handles environment variable operations
+type EnvVarManager struct {
+	powershell string
+}
 
-	okDefaultInstall := reqUserConfirmation("Accept the default install location?\n - " + OraicDstPath + "\nSelect")
-	if !okDefaultInstall {
-		changeDefaultInstall := reqUserConfirmation("Change the default install location from '" + OraicDstPath + "'? Select")
-		if !changeDefaultInstall {
-			continueInstall := reqUserConfirmation("Continue with install? Select")
-			if !continueInstall {
-				handleError(fmt.Errorf("installation aborted by user"), ErrorTypeValidation, "user confirmation")
-				log.Fatal("installation aborted by user.")
-			}
-		} else {
-			OraicDstPath := reqUserInstallPath("Enter desired install path...\n")
-			continueInstall := reqUserConfirmation("Continue with install to '" + OraicDstPath + "'? Select")
-			if !continueInstall {
-				handleError(fmt.Errorf("installation aborted by user"), ErrorTypeValidation, "user confirmation")
-				log.Fatal("installation aborted by user.")
-			}
+// NewEnvVarManager creates a new environment variable manager
+func NewEnvVarManager() *EnvVarManager {
+	return &EnvVarManager{
+		powershell: "powershell",
+	}
+}
+
+// GetEnvVar retrieves a user environment variable
+func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
+	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
+	out, err := exec.Command(e.powershell, cmd).Output()
+	if err != nil {
+		return "", handleError(err, ErrorTypeEnvironment, fmt.Sprintf("getting %s environment variable", name))
+	}
+	return strings.TrimSuffix(string(out), "\r\n"), nil
+}
+
+// SetEnvVar sets a user environment variable
+func (e *EnvVarManager) SetEnvVar(name, value string) error {
+	cmd := fmt.Sprintf("[Environment]::SetEnvironmentVariable('%s', '%s', 'User')", name, value)
+	if _, err := exec.Command(e.powershell, cmd).Output(); err != nil {
+		return handleError(err, ErrorTypeEnvironment, fmt.Sprintf("setting %s environment variable", name))
+	}
+	return nil
+}
+
+// AppendToPath adds a new path to the PATH environment variable
+func (e *EnvVarManager) AppendToPath(newPath string) error {
+	currentPath, err := e.GetEnvVar("PATH")
+	if err != nil {
+		return err
+	}
+
+	// Check if path already exists
+	if strings.Contains(currentPath, newPath) {
+		fmt.Printf("path %s already exists in PATH\n", newPath)
+		return nil
+	}
+
+	// Ensure path ends with semicolon
+	if !strings.HasSuffix(currentPath, ";") {
+		currentPath += ";"
+	}
+
+	newFullPath := currentPath + newPath + ";"
+	return e.SetEnvVar("PATH", newFullPath)
+}
+
+// handleInstallLocation handles the user interaction for installation path
+func handleInstallLocation(config *InstallConfig) error {
+	if ok := reqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
+		if change := reqUserConfirmation("Change the default install location?"); change {
+			newPath := reqUserInstallPath("Enter desired install path...\n")
+			config.InstallPath = newPath
+		}
+
+		if cont := reqUserConfirmation("Continue with install?"); !cont {
+			return handleError(
+				fmt.Errorf("installation aborted by user"),
+				ErrorTypeValidation,
+				"user confirmation",
+			)
 		}
 	}
-	InstallOracleInstantClient(userDownloads, OraicDstPath)
+	return nil
 }
 
 func getUserDestPath(dirEndpoint string) (string, error) {
@@ -101,7 +201,7 @@ func getUserDestPath(dirEndpoint string) (string, error) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return "", handleError(fmt.Errorf("directory does not exist: %s", dir), ErrorTypeUserPath, "checking user profile directory")
 	} else if err != nil {
-		log.Fatal("User profile directory does not exist: ", dir)
+		return "", handleError(err, ErrorTypeUserPath, "checking user profile directory")
 	}
 
 	return dir, nil
@@ -110,9 +210,14 @@ func getUserDestPath(dirEndpoint string) (string, error) {
 func reqUserConfirmation(label string) bool {
 	choices := "y/n"
 	r := bufio.NewReader(os.Stdin)
-	for {
+	attempts := 0
+	maxAttempts := 3
+	for attempts < maxAttempts {
 		fmt.Fprintf(os.Stderr, "%s (%s): ", label, choices)
-		s, _ := r.ReadString('\n')
+		s, err := r.ReadString('\n')
+		if err != nil {
+			log.Fatal("error reading input: ", err)
+		}
 		s = strings.ToLower(strings.TrimSpace(s))
 		switch s {
 		case "y":
@@ -120,9 +225,12 @@ func reqUserConfirmation(label string) bool {
 		case "n":
 			return false
 		default:
-			fmt.Println("Must enter 'y' or 'n'")
+			attempts++
+			fmt.Printf("must enter 'y' or 'n' (%d attempts remaining)\n", maxAttempts-attempts)
 		}
 	}
+	log.Fatal("maximum input attempts exceeded")
+	return false
 }
 
 func reqUserInstallPath(label string) string {
@@ -132,11 +240,10 @@ func reqUserInstallPath(label string) string {
 		fmt.Fprintf(os.Stderr, "%s", label)
 		path, _ = r.ReadString('\n')
 		path = strings.TrimSpace(path)
-		if stat, err := os.Stat(path); stat.IsDir() && err == nil {
+		if stat, err := os.Stat(path); err == nil && stat.IsDir() {
 			return path
 		} else {
-			log.Fatal("Invalid path provided: ", path)
-			fmt.Println("Please provide a valid directory path.")
+			fmt.Printf("Invalid path provided: %s (error: %v)\n", path, err)
 			continue
 		}
 	}
@@ -168,19 +275,16 @@ func downloadOracleInstantClient(url, dest string) error {
 	return nil
 }
 
-func unzipOracleInstantClient(zipPath, destPath string) string {
+func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
 	// Create base folder
-	err := os.MkdirAll(destPath, 0777)
-	if err != nil {
-		handleError(err, ErrorTypeInstall, "creating base directory")
-		log.Fatalf("error creating base directory: %s", err)
+	if err := os.MkdirAll(destPath, 0777); err != nil {
+		return "", handleError(err, ErrorTypeInstall, "creating base directory")
 	}
 
 	// Open a zip archive for reading.
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		handleError(err, ErrorTypeInstall, "opening zip archive")
-		log.Fatal("error opening zip archive: ", err)
+		return "", handleError(err, ErrorTypeInstall, "opening zip archive")
 	}
 	defer r.Close()
 
@@ -188,155 +292,116 @@ func unzipOracleInstantClient(zipPath, destPath string) string {
 	var outDestPath string
 	for k, f := range r.File {
 		re := regexp.MustCompilePOSIX(`^(instantclient_){1}([0-9]{1,2})_([0-9]{1,2})\/$`)
-		matched := re.Match([]byte(f.Name))
-		if matched {
+		if re.Match([]byte(f.Name)) {
 			outDestPath = f.Name
 		}
-
-		// If current 'f' ends in '/', then it's a dir, and that dir needs created.
-		var outPath string
-		if f.Name[len(f.Name)-1:] == "/" {
-			outPath = filepath.Join(destPath, f.Name)
-			fmt.Println("DIR OUTPATH: " + outPath)
-			err := os.MkdirAll(outPath, 0777)
-			if err != nil {
-				log.Fatalf("Impossible to MkdirAll: %s", err)
-			}
-			continue
-		} else {
-			re := regexp.MustCompile(`^(.*[\\\/])[^\\\/]*$`)
-			outPath = filepath.Join(destPath, re.ReplaceAllString(f.Name, "$1"))
-			err := os.MkdirAll(outPath, 0777)
-			if err != nil {
-				log.Fatalf("Impossible to MkdirAll: %s", err)
-			}
-
-			fmt.Printf(" - Unzipping: %s\n", f.Name)
-			rc, err := f.Open()
-			if err != nil {
-				log.Fatalf("Cannot open file n%d in zip: %s", k, err)
-			}
-			unzippedFile, err := os.Create(filepath.Join(destPath, f.Name))
-			if err != nil {
-				log.Fatalf("Impossible to unzip: %s", err)
-			}
-			_, err = io.Copy(unzippedFile, rc)
-			if err != nil {
-				log.Fatalf("Cannot copy file n%d: %s", k, err)
-			}
+		if err := extractFile(f, destPath); err != nil {
+			return "", handleError(err, ErrorTypeInstall, fmt.Sprintf("extracting file %d", k))
 		}
 	}
-	return outDestPath
+
+	if outDestPath == "" {
+		return "", handleError(
+			fmt.Errorf("no valid instant client directory found in zip"),
+			ErrorTypeInstall,
+			"validating zip contents",
+		)
+	}
+
+	return outDestPath, nil
 }
 
-func setEnvironmentVariable(usrEnvVar, envVarPath string) {
-	// Check existing environment variables
-	psGetEnvCmd := "[System.Environment]::GetEnvironmentVariable('" + usrEnvVar + "', 'User')"
-	currUsrVar, err := exec.Command("powershell", psGetEnvCmd).Output()
+// Helper function to extract a single file from zip
+func extractFile(f *zip.File, destPath string) error {
+	outPath := filepath.Join(destPath, f.Name)
+
+	if f.FileInfo().IsDir() {
+		return os.MkdirAll(outPath, 0777)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outPath), 0777); err != nil {
+		return fmt.Errorf("creating directories: %w", err)
+	}
+
+	rc, err := f.Open()
 	if err != nil {
-		log.Fatal("Error getting current User Environment Variable: ", err)
+		return fmt.Errorf("opening zip file: %w", err)
 	}
-	currUsrVarStr := strings.TrimSuffix(string(currUsrVar), "\r\n")
+	defer rc.Close()
 
-	var needToAdd bool
-	switch usrEnvVar {
-	case "OCI_LIB64", "TNS_ADMIN":
-		if currUsrVarStr == envVarPath {
-			fmt.Println(usrEnvVar + " already exists in User Environment Variable list. No changes made.")
-			needToAdd = false
-		} else {
-			fmt.Println("Adding " + usrEnvVar + " to User Environment Variable list.")
-			needToAdd = true
-		}
-	case "PATH":
-		if strings.Contains(currUsrVarStr, envVarPath) {
-			fmt.Println(envVarPath + " already exists in User PATH Variable. No changes made.")
-			needToAdd = false
-		} else {
-			fmt.Println("Adding " + envVarPath + " to User PATH Environment Variable.")
-			needToAdd = true
-		}
-	default:
-		log.Fatal("Error: no known handle for " + usrEnvVar)
-		needToAdd = false
+	out, err := os.Create(outPath)
+	if err != nil {
+		return fmt.Errorf("creating output file: %w", err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, rc)
+	if err != nil {
+		return fmt.Errorf("writing file contents: %w", err)
 	}
 
-	// If needed, add new Environment Variable or new path to the Path environment variable
-	if needToAdd {
-		var envVarDir string
-		switch usrEnvVar {
-		case "OCI_LIB64", "TNS_ADMIN":
-			envVarDir = envVarPath
-			fmt.Println("\t" + usrEnvVar + "=" + envVarDir)
-		case "PATH":
-			psGetEnvCmd := "[System.Environment]::GetEnvironmentVariable('" + usrEnvVar + "', 'User')"
-			usrPath, err := exec.Command("powershell", psGetEnvCmd).Output()
-			if err != nil {
-				log.Fatal("Error getting current User PATH Environment Variable: ", err)
-			}
-			if string(usrPath)[len(string(usrPath))-1:] == ";" {
-				envVarDir = strings.TrimSuffix(string(usrPath), "\r\n") + envVarPath + ";"
-			} else {
-				envVarDir = strings.TrimSuffix(string(usrPath), "\r\n") + ";" + envVarPath + ";"
-			}
-			fmt.Println("\t" + usrEnvVar + "=" + envVarDir)
-		default:
-			log.Fatal("Error: no known handle for " + usrEnvVar)
-			return
-		}
-
-		psSetEnvCmd := "[Environment]::SetEnvironmentVariable('" + usrEnvVar + "', '" + envVarDir + "' , 'User')"
-		_, err := exec.Command("powershell", psSetEnvCmd).Output()
-		if err != nil {
-			log.Fatal("Error setting User Environment Variable: ", err)
-		}
-		_, exists := os.LookupEnv(usrEnvVar)
-		if exists {
-			fmt.Println(usrEnvVar + " successfully added to User Environment Variable list.\n")
-		}
-	}
+	return nil
 }
 
-func InstallOracleInstantClient(downloadPath, installPath string) {
-	// Set paths for filename download locations
-	oraicPkgZipLoc := filepath.Join(downloadPath, OraicPkgName)
-	oraicSdkZipLoc := filepath.Join(downloadPath, OraicSdkName)
-	// Set paths for Oracle Instant Client PKG & SDK URLs
-	oraicPkgUrl := OraicBaseUrl + OraicPkgName
-	oraicSdkUrl := OraicBaseUrl + OraicSdkName
+func InstallOracleInstantClient(config *InstallConfig) error {
+	// Set paths for downloads
+	pkgZipPath := filepath.Join(config.DownloadsPath, config.PkgFile)
+	sdkZipPath := filepath.Join(config.DownloadsPath, config.SdkFile)
 
-	// Download LATEST Oracle Instant Client PKG & SDK
-	fmt.Println("Downloading PKG ZIP: " + oraicPkgZipLoc + "...")
-	downloadOracleInstantClient(oraicPkgUrl, oraicPkgZipLoc)
-	fmt.Println("Downloaded SDK ZIP: " + oraicSdkZipLoc + "...")
-	downloadOracleInstantClient(oraicSdkUrl, oraicSdkZipLoc)
+	// Download files
+	fmt.Printf("downloading package: %s...\n", pkgZipPath)
+	if err := downloadOracleInstantClient(config.BaseURL+config.PkgFile, pkgZipPath); err != nil {
+		return err
+	}
 
-	// Unzip Oracle Instant Client PKG & SDK (NOTE: '*_Tld' short for 'Top Level Directory')
-	fmt.Println("Unzipping: " + oraicPkgZipLoc + " to " + installPath)
-	oraicPkgTld := unzipOracleInstantClient(oraicPkgZipLoc, installPath)
-	fmt.Println("Unzipping:", oraicSdkZipLoc)
-	oraicSkdTld := unzipOracleInstantClient(oraicSdkZipLoc, installPath)
+	fmt.Printf("downloading SDK: %s...\n", sdkZipPath)
+	if err := downloadOracleInstantClient(config.BaseURL+config.SdkFile, sdkZipPath); err != nil {
+		return err
+	}
+
+	// Unzip files
+	fmt.Printf("extracting: %s to %s\n", pkgZipPath, config.InstallPath)
+	pkgDir, err := unzipOracleInstantClient(pkgZipPath, config.InstallPath)
+	if err != nil {
+		return handleError(err, ErrorTypeInstall, "unzip package")
+	}
+
+	fmt.Printf("extracting: %s\n", sdkZipPath)
+	sdkDir, err := unzipOracleInstantClient(sdkZipPath, config.InstallPath)
+	if err != nil {
+		return handleError(err, ErrorTypeInstall, "unzip SDK")
+	}
 
 	// Verify version match
-	if oraicPkgTld == oraicSkdTld {
-		fmt.Println("Oracle Instant Client PKG and SDK versions match. Continuing...")
-	} else {
-		fmt.Println("Oracle Instant Client PKG and SDK versions DO NOT match. Exiting...")
-		fmt.Println("    ORAIC_PKG_TLD: " + oraicPkgTld)
-		fmt.Println("    ORAIC_SDK_TLD: " + oraicSkdTld)
-		os.Exit(1)
+	if pkgDir != sdkDir {
+		return handleError(
+			fmt.Errorf("package version (%s) does not match SDK version (%s)", pkgDir, sdkDir),
+			ErrorTypeInstall,
+			"version verification",
+		)
+	}
+	fmt.Println("package and SDK versions match, continuing...")
+
+	// Setup environment variables
+	envManager := NewEnvVarManager()
+
+	ociLibPath := filepath.Join(config.InstallPath, pkgDir)
+	fmt.Printf("setting OCI_LIB64=%s\n", ociLibPath)
+	if err := envManager.SetEnvVar("OCI_LIB64", ociLibPath); err != nil {
+		return err
 	}
 
-	evpOCILib64 := filepath.Join(installPath, oraicPkgTld)
-	fmt.Println("OCI_LIB64_ENVARPATH: " + evpOCILib64)
-	setEnvironmentVariable("OCI_LIB64", evpOCILib64)
-	setEnvironmentVariable("PATH", evpOCILib64)
+	fmt.Printf("updating PATH to include %s\n", ociLibPath)
+	if err := envManager.AppendToPath(ociLibPath); err != nil {
+		return err
+	}
 
-	evpTNSAdmin := filepath.Join(evpOCILib64, "network", "admin")
-	fmt.Println("TNS_ADMIN_ENVARPATH: " + evpTNSAdmin)
-	setEnvironmentVariable("TNS_ADMIN", evpTNSAdmin)
+	tnsAdminPath := filepath.Join(ociLibPath, "network", "admin")
+	fmt.Printf("setting TNS_ADMIN=%s\n", tnsAdminPath)
+	if err := envManager.SetEnvVar("TNS_ADMIN", tnsAdminPath); err != nil {
+		return err
+	}
 
-	// Wait for user input
-	fmt.Println("Oracle InstantClient Installation Complete!\nPress any key to escape...")
-	fmt.Scanln()
+	fmt.Println("Oracle InstantClient installation completed successfully!")
+	return nil
 }
