@@ -61,7 +61,7 @@ const (
 	baseDownloadURL    = "https://download.oracle.com/otn_software/nt/instantclient/"
 )
 
-// InstallConfig holds all installation configuration
+// InstallConfig holds all installation configurations
 type InstallConfig struct {
 	InstallPath   string
 	DownloadsPath string
@@ -71,6 +71,7 @@ type InstallConfig struct {
 }
 
 // NewDefaultConfig creates a new configuration with default values
+// and returns a pointer to it
 func NewDefaultConfig() *InstallConfig {
 	return &InstallConfig{
 		InstallPath: defaultInstallPath,
@@ -99,10 +100,12 @@ type InstallError struct {
 	Err       error
 }
 
+// Error implements the error interface for InstallError
 func (e *InstallError) Error() string {
 	return fmt.Sprintf("%s: %v", e.Operation, e.Err)
 }
 
+// Unwrap implements the Unwrap method for InstallError
 func (e *InstallError) Unwrap() error {
 	return e.Err
 }
@@ -172,7 +175,7 @@ func (e *EnvVarManager) AppendToPath(newPath string) error {
 	return e.SetEnvVar("PATH", newFullPath)
 }
 
-// handleInstallLocation handles the user interaction for installation path
+// handleInstallLocation handles the user interaction for user-defined installation path
 func handleInstallLocation(config *InstallConfig) error {
 	if ok := reqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
 		if change := reqUserConfirmation("Change the default install location?"); change {
@@ -191,13 +194,15 @@ func handleInstallLocation(config *InstallConfig) error {
 	return nil
 }
 
-func getUserDestPath(dirEndpoint string) (string, error) {
+// getUserDestPath retrieves the user profile directory for a given endpoint
+// and checks if the directory exists
+func getUserDestPath(usrDestPath string) (string, error) {
 	usrDir, err := exec.Command("powershell", "$env:USERPROFILE").Output()
 	if err != nil {
 		return "", handleError(err, ErrorTypeUserPath, "getting user profile directory")
 	}
 
-	dir := filepath.Join(strings.TrimSuffix(string(usrDir), "\r\n"), dirEndpoint)
+	dir := filepath.Join(strings.TrimSuffix(string(usrDir), "\r\n"), usrDestPath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return "", handleError(fmt.Errorf("directory does not exist: %s", dir), ErrorTypeUserPath, "checking user profile directory")
 	} else if err != nil {
@@ -207,6 +212,8 @@ func getUserDestPath(dirEndpoint string) (string, error) {
 	return dir, nil
 }
 
+// reqUserConfirmation prompts the user for a yes/no confirmation
+// and returns true for 'y' and false for 'n'
 func reqUserConfirmation(label string) bool {
 	choices := "y/n"
 	r := bufio.NewReader(os.Stdin)
@@ -233,12 +240,16 @@ func reqUserConfirmation(label string) bool {
 	return false
 }
 
+// reqUserInstallPath prompts the user for a valid installation path
+// and validates that it is an existing directory
 func reqUserInstallPath(label string) string {
 	r := bufio.NewReader(os.Stdin)
-	var path string
 	for {
 		fmt.Fprintf(os.Stderr, "%s", label)
-		path, _ = r.ReadString('\n')
+		path, err := r.ReadString('\n')
+		if err != nil || path == "" {
+			log.Fatal("error reading input: ", err)
+		}
 		path = strings.TrimSpace(path)
 		if stat, err := os.Stat(path); err == nil && stat.IsDir() {
 			return path
@@ -249,9 +260,10 @@ func reqUserInstallPath(label string) string {
 	}
 }
 
-func downloadOracleInstantClient(url, dest string) error {
-	// Get the data
-	resp, err := http.Get(url)
+// downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
+func downloadOracleInstantClient(urlPath, destPath string) error {
+	// Get zip archive from URL
+	resp, err := http.Get(urlPath)
 	if err != nil {
 		return handleError(err, ErrorTypeDownload, "downloading from URL")
 	}
@@ -261,7 +273,7 @@ func downloadOracleInstantClient(url, dest string) error {
 	defer resp.Body.Close()
 
 	// Create file
-	out, err := os.Create(dest)
+	out, err := os.Create(destPath)
 	if err != nil {
 		return handleError(err, ErrorTypeDownload, "creating download file")
 	}
@@ -275,8 +287,10 @@ func downloadOracleInstantClient(url, dest string) error {
 	return nil
 }
 
+// unzipOracleInstantClient extracts the Oracle Instant Client zip file to the specified destination path
+// and returns the directory name of the extracted files
 func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
-	// Create base folder
+	// Create base directory
 	if err := os.MkdirAll(destPath, 0777); err != nil {
 		return "", handleError(err, ErrorTypeInstall, "creating base directory")
 	}
@@ -289,18 +303,18 @@ func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
 	defer r.Close()
 
 	// Iterate through the files in the archive, printing some of their contents.
-	var outDestPath string
+	var outPath string
 	for k, f := range r.File {
 		re := regexp.MustCompilePOSIX(`^(instantclient_){1}([0-9]{1,2})_([0-9]{1,2})\/$`)
 		if re.Match([]byte(f.Name)) {
-			outDestPath = f.Name
+			outPath = f.Name
 		}
 		if err := extractFile(f, destPath); err != nil {
 			return "", handleError(err, ErrorTypeInstall, fmt.Sprintf("extracting file %d", k))
 		}
 	}
 
-	if outDestPath == "" {
+	if outPath == "" {
 		return "", handleError(
 			fmt.Errorf("no valid instant client directory found in zip"),
 			ErrorTypeInstall,
@@ -308,18 +322,18 @@ func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
 		)
 	}
 
-	return outDestPath, nil
+	return outPath, nil
 }
 
 // Helper function to extract a single file from zip
 func extractFile(f *zip.File, destPath string) error {
-	outPath := filepath.Join(destPath, f.Name)
+	outName := filepath.Join(destPath, f.Name)
 
 	if f.FileInfo().IsDir() {
-		return os.MkdirAll(outPath, 0777)
+		return os.MkdirAll(outName, 0777)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outPath), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outName), 0777); err != nil {
 		return fmt.Errorf("creating directories: %w", err)
 	}
 
@@ -329,7 +343,7 @@ func extractFile(f *zip.File, destPath string) error {
 	}
 	defer rc.Close()
 
-	out, err := os.Create(outPath)
+	out, err := os.Create(outName)
 	if err != nil {
 		return fmt.Errorf("creating output file: %w", err)
 	}
@@ -343,29 +357,34 @@ func extractFile(f *zip.File, destPath string) error {
 	return nil
 }
 
+// InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
 func InstallOracleInstantClient(config *InstallConfig) error {
+	// INSTALLATION STEPS
+	fmt.Println("Starting Oracle InstantClient installation...")
 	// Set paths for downloads
 	pkgZipPath := filepath.Join(config.DownloadsPath, config.PkgFile)
 	sdkZipPath := filepath.Join(config.DownloadsPath, config.SdkFile)
 
-	// Download files
+	// Download package files
 	fmt.Printf("downloading package: %s...\n", pkgZipPath)
 	if err := downloadOracleInstantClient(config.BaseURL+config.PkgFile, pkgZipPath); err != nil {
 		return err
 	}
 
+	// Download SDK files
 	fmt.Printf("downloading SDK: %s...\n", sdkZipPath)
 	if err := downloadOracleInstantClient(config.BaseURL+config.SdkFile, sdkZipPath); err != nil {
 		return err
 	}
 
-	// Unzip files
+	// Unzip package files
 	fmt.Printf("extracting: %s to %s\n", pkgZipPath, config.InstallPath)
 	pkgDir, err := unzipOracleInstantClient(pkgZipPath, config.InstallPath)
 	if err != nil {
 		return handleError(err, ErrorTypeInstall, "unzip package")
 	}
 
+	// Unzip SDK files
 	fmt.Printf("extracting: %s\n", sdkZipPath)
 	sdkDir, err := unzipOracleInstantClient(sdkZipPath, config.InstallPath)
 	if err != nil {
@@ -382,6 +401,8 @@ func InstallOracleInstantClient(config *InstallConfig) error {
 	}
 	fmt.Println("package and SDK versions match, continuing...")
 
+	// CONFIGURATION STEPS
+	fmt.Println("Configuring Oracle InstantClient...")
 	// Setup environment variables
 	envManager := NewEnvVarManager()
 
