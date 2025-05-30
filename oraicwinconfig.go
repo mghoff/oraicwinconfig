@@ -245,7 +245,9 @@ func reqUserConfirmation(label string) bool {
 // and validates that it is an existing directory
 func reqUserInstallPath(label string) string {
 	r := bufio.NewReader(os.Stdin)
-	for {
+	attempts := 0
+	maxAttempts := 3
+	for attempts < maxAttempts {
 		fmt.Fprintf(os.Stderr, "%s", label)
 		path, err := r.ReadString('\n')
 		if err != nil || path == "" {
@@ -256,9 +258,12 @@ func reqUserInstallPath(label string) string {
 			return path
 		} else {
 			fmt.Printf("Invalid path provided: %s (error: %v)\n", path, err)
-			continue
+			fmt.Printf("Please provide a valid existing directory (%d attempts remaining)\n", maxAttempts-attempts)
 		}
+		attempts++
 	}
+	log.Fatal("maximum input attempts exceeded, installation aborted")
+	return "" // This line will never be reached due to log.Fatal above
 }
 
 // downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
