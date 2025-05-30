@@ -178,9 +178,10 @@ func (e *EnvVarManager) AppendToPath(newPath string) error {
 // handleInstallLocation handles the user interaction for user-defined installation path
 func handleInstallLocation(config *InstallConfig) error {
 	if ok := reqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
-		if change := reqUserConfirmation("Change the default install location?"); change {
+		if change := reqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
 			newPath := reqUserInstallPath("Enter desired install path...\n")
 			config.InstallPath = newPath
+			fmt.Printf("install path set to: %s\n", config.InstallPath)
 		}
 
 		if cont := reqUserConfirmation("Continue with install?"); !cont {
