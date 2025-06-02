@@ -1,0 +1,60 @@
+package main
+
+import (
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+// EnvVarManager handles environment variable operations
+type EnvVarManager struct {
+	powershell string
+}
+
+// NewEnvVarManager creates a new environment variable manager
+func NewEnvVarManager() *EnvVarManager {
+	return &EnvVarManager{
+		powershell: "powershell",
+	}
+}
+
+// GetEnvVar retrieves a user environment variable
+func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
+	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
+	out, err := exec.Command(e.powershell, cmd).Output()
+	if err != nil {
+		return "", handleError(err, ErrorTypeEnvironment, fmt.Sprintf("getting %s environment variable", name))
+	}
+	return strings.TrimSuffix(string(out), "\r\n"), nil
+}
+
+// SetEnvVar sets a user environment variable
+func (e *EnvVarManager) SetEnvVar(name, value string) error {
+	cmd := fmt.Sprintf("[Environment]::SetEnvironmentVariable('%s', '%s', 'User')", name, value)
+	if _, err := exec.Command(e.powershell, cmd).Output(); err != nil {
+		return handleError(err, ErrorTypeEnvironment, fmt.Sprintf("setting %s environment variable", name))
+	}
+	return nil
+}
+
+// AppendToPath adds a new path to the PATH environment variable
+func (e *EnvVarManager) AppendToPath(newPath string) error {
+	currentPath, err := e.GetEnvVar("PATH")
+	if err != nil {
+		return err
+	}
+
+	// Check if path already exists
+	if strings.Contains(currentPath, newPath) {
+		fmt.Printf("path %s already exists in PATH\n", newPath)
+		return nil
+	}
+
+	// Ensure path ends with semicolon
+	if !strings.HasSuffix(currentPath, ";") {
+		currentPath += ";"
+	}
+
+	newFullPath := currentPath + newPath + ";"
+	return e.SetEnvVar("PATH", newFullPath)
+}
