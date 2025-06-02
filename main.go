@@ -4,11 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"context"
 
 	"github.com/mghoff/oraicwinconfig/internal"
 )
 
 func main() {
+	ctx := context.Background()
+
+	// Initialize configuration with default values
+	// and set the DownloadsPath to the user's Downloads directory
 	config := internal.NewDefaultConfig()
 
 	downloads, err := internal.GetUserDestPath("Downloads")
@@ -31,7 +36,7 @@ func main() {
 	}
 
 	// Perform installation
-	if err := internal.InstallOracleInstantClient(config); err != nil {
+	if err := internal.InstallOracleInstantClient(ctx, config); err != nil {
 		var installErr *internal.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {

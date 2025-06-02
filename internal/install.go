@@ -8,25 +8,38 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"context"
+	"time"
 )
 
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
-func InstallOracleInstantClient(config *InstallConfig) error {
+func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) error {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+	}
+
 	// INSTALLATION STEPS
 	fmt.Println("Starting Oracle InstantClient installation...")
 	// Set paths for downloads
 	pkgZipPath := filepath.Join(config.DownloadsPath, config.PkgFile)
 	sdkZipPath := filepath.Join(config.DownloadsPath, config.SdkFile)
 
+	// Check for context cancellation
+	if err := ctx.Err(); err != nil {
+		return HandleError(err, ErrorTypeInstall, "context cancellation")
+	}
+
 	// Download package files
 	fmt.Printf("downloading package: %s...\n", pkgZipPath)
-	if err := downloadOracleInstantClient(config.BaseURL+config.PkgFile, pkgZipPath); err != nil {
+	if err := downloadOracleInstantClient(ctx, config.BaseURL+config.PkgFile, pkgZipPath); err != nil {
 		return err
 	}
 
 	// Download SDK files
 	fmt.Printf("downloading SDK: %s...\n", sdkZipPath)
-	if err := downloadOracleInstantClient(config.BaseURL+config.SdkFile, sdkZipPath); err != nil {
+	if err := downloadOracleInstantClient(ctx, config.BaseURL+config.SdkFile, sdkZipPath); err != nil {
 		return err
 	}
 
@@ -81,9 +94,14 @@ func InstallOracleInstantClient(config *InstallConfig) error {
 }
 
 // downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
-func downloadOracleInstantClient(urlPath, destPath string) error {
+func downloadOracleInstantClient(ctx context.Context, urlPath, destPath string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlPath, nil)
+	if err != nil {
+		return HandleError(err, ErrorTypeDownload, "creating HTTP request")
+	}
+
 	// Get zip archive from URL
-	resp, err := http.Get(urlPath)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return HandleError(err, ErrorTypeDownload, "downloading from URL")
 	}
