@@ -4,11 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"context"
+	"time"
 
 	"github.com/mghoff/oraicwinconfig/internal"
 )
 
 func main() {
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Initialize configuration with default values
+	// and set the DownloadsPath to the user's Downloads directory
 	config := internal.NewDefaultConfig()
 
 	downloads, err := internal.GetUserDestPath("Downloads")
@@ -25,8 +33,13 @@ func main() {
 		log.Fatal("error handling install location: ", err)
 	}
 
+	// Validate configuration before proceeding
+	if err := config.Validate(); err != nil {
+		log.Fatal("invalid configuration: ", err)
+	}
+
 	// Perform installation
-	if err := internal.InstallOracleInstantClient(config); err != nil {
+	if err := internal.InstallOracleInstantClient(ctx, config); err != nil {
 		var installErr *internal.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {
