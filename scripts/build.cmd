@@ -2,8 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: Set version number
-set VERSION=1.0.0
-
+set VERSION=0.1.0
 
 :: Create dist directory if it doesn't exist
 if not exist "dist" mkdir dist

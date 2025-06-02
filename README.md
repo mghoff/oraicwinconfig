@@ -1,6 +1,8 @@
 # oraicwinconfig
 Go package for installing and configuring Oracle Instant Client on Windows 11 to be used by the ROracle R package.
 
+![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+
 ## Requirements
 
   + Windows 11 OS
