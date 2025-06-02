@@ -4,14 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-
-	"github.com/mghoff/oraicwinconfig/internal/errors"
 )
 
 func main() {
 	config := NewDefaultConfig()
 
-	downloads, err := getUserDestPath("Downloads")
+	downloads, err := GetUserDestPath("Downloads")
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}
@@ -48,15 +46,15 @@ func main() {
 
 // handleInstallLocation handles the user interaction for user-defined installation path
 func handleInstallLocation(config *InstallConfig) error {
-	if ok := reqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
-		if change := reqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
-			newPath := reqUserInstallPath("Enter desired install path...\n")
+	if ok := ReqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
+		if change := ReqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
+			newPath := ReqUserInstallPath("Enter desired install path...\n")
 			config.InstallPath = newPath
 			fmt.Printf("install path set to: %s\n", config.InstallPath)
 		}
 
-		if cont := reqUserConfirmation("Continue with install?"); !cont {
-			return handleError(
+		if cont := ReqUserConfirmation("Continue with install?"); !cont {
+			return HandleError(
 				fmt.Errorf("installation aborted by user"),
 				ErrorTypeValidation,
 				"user confirmation",

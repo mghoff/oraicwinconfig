@@ -34,19 +34,19 @@ func InstallOracleInstantClient(config *InstallConfig) error {
 	fmt.Printf("extracting: %s to %s\n", pkgZipPath, config.InstallPath)
 	pkgDir, err := unzipOracleInstantClient(pkgZipPath, config.InstallPath)
 	if err != nil {
-		return handleError(err, ErrorTypeInstall, "unzip package")
+		return HandleError(err, ErrorTypeInstall, "unzip package")
 	}
 
 	// Unzip SDK files
 	fmt.Printf("extracting: %s\n", sdkZipPath)
 	sdkDir, err := unzipOracleInstantClient(sdkZipPath, config.InstallPath)
 	if err != nil {
-		return handleError(err, ErrorTypeInstall, "unzip SDK")
+		return HandleError(err, ErrorTypeInstall, "unzip SDK")
 	}
 
 	// Verify version match
 	if pkgDir != sdkDir {
-		return handleError(
+		return HandleError(
 			fmt.Errorf("package version (%s) does not match SDK version (%s)", pkgDir, sdkDir),
 			ErrorTypeInstall,
 			"version verification",
@@ -85,24 +85,24 @@ func downloadOracleInstantClient(urlPath, destPath string) error {
 	// Get zip archive from URL
 	resp, err := http.Get(urlPath)
 	if err != nil {
-		return handleError(err, ErrorTypeDownload, "downloading from URL")
+		return HandleError(err, ErrorTypeDownload, "downloading from URL")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return handleError(fmt.Errorf("HTTP status %s", resp.Status), ErrorTypeDownload, "checking response status")
+		return HandleError(fmt.Errorf("HTTP status %s", resp.Status), ErrorTypeDownload, "checking response status")
 	}
 	defer resp.Body.Close()
 
 	// Create file
 	out, err := os.Create(destPath)
 	if err != nil {
-		return handleError(err, ErrorTypeDownload, "creating download file")
+		return HandleError(err, ErrorTypeDownload, "creating download file")
 	}
 	defer out.Close()
 
 	// Write response body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return handleError(err, ErrorTypeDownload, "writing download to file")
+		return HandleError(err, ErrorTypeDownload, "writing download to file")
 	}
 	return nil
 }
@@ -112,13 +112,13 @@ func downloadOracleInstantClient(urlPath, destPath string) error {
 func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
 	// Create base directory
 	if err := os.MkdirAll(destPath, 0777); err != nil {
-		return "", handleError(err, ErrorTypeInstall, "creating base directory")
+		return "", HandleError(err, ErrorTypeInstall, "creating base directory")
 	}
 
 	// Open a zip archive for reading.
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return "", handleError(err, ErrorTypeInstall, "opening zip archive")
+		return "", HandleError(err, ErrorTypeInstall, "opening zip archive")
 	}
 	defer r.Close()
 
@@ -130,12 +130,12 @@ func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
 			outPath = f.Name
 		}
 		if err := extractFile(f, destPath); err != nil {
-			return "", handleError(err, ErrorTypeInstall, fmt.Sprintf("extracting file %d", k))
+			return "", HandleError(err, ErrorTypeInstall, fmt.Sprintf("extracting file %d", k))
 		}
 	}
 
 	if outPath == "" {
-		return "", handleError(
+		return "", HandleError(
 			fmt.Errorf("no valid instant client directory found in zip"),
 			ErrorTypeInstall,
 			"validating zip contents",

@@ -12,17 +12,17 @@ import (
 
 // getUserDestPath retrieves the user profile directory for a given endpoint
 // and checks if the directory exists
-func getUserDestPath(usrDestPath string) (string, error) {
+func GetUserDestPath(usrDestPath string) (string, error) {
 	usrDir, err := exec.Command("powershell", "$env:USERPROFILE").Output()
 	if err != nil {
-		return "", handleError(err, ErrorTypeUserPath, "getting user profile directory")
+		return "", HandleError(err, ErrorTypeUserPath, "getting user profile directory")
 	}
 
 	dir := filepath.Join(strings.TrimSuffix(string(usrDir), "\r\n"), usrDestPath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return "", handleError(fmt.Errorf("directory does not exist: %s", dir), ErrorTypeUserPath, "checking user profile directory")
+		return "", HandleError(fmt.Errorf("directory does not exist: %s", dir), ErrorTypeUserPath, "checking user profile directory")
 	} else if err != nil {
-		return "", handleError(err, ErrorTypeUserPath, "checking user profile directory")
+		return "", HandleError(err, ErrorTypeUserPath, "checking user profile directory")
 	}
 
 	return dir, nil
@@ -30,7 +30,7 @@ func getUserDestPath(usrDestPath string) (string, error) {
 
 // reqUserConfirmation prompts the user for a yes/no confirmation
 // and returns true for 'y' and false for 'n'
-func reqUserConfirmation(label string) bool {
+func ReqUserConfirmation(label string) bool {
 	choices := "y/n"
 	r := bufio.NewReader(os.Stdin)
 	attempts := 0
@@ -58,7 +58,7 @@ func reqUserConfirmation(label string) bool {
 
 // reqUserInstallPath prompts the user for a valid installation path
 // and validates that it is an existing directory
-func reqUserInstallPath(label string) string {
+func ReqUserInstallPath(label string) string {
 	r := bufio.NewReader(os.Stdin)
 	attempts := 0
 	maxAttempts := 3
