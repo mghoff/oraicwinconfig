@@ -9,9 +9,9 @@ import (
 )
 
 func main() {
-	config := NewDefaultConfig()
+	config := internal.NewDefaultConfig()
 
-	downloads, err := GetUserDestPath("Downloads")
+	downloads, err := internal.GetUserDestPath("Downloads")
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}
@@ -26,15 +26,15 @@ func main() {
 	}
 
 	// Perform installation
-	if err := InstallOracleInstantClient(config); err != nil {
-		var installErr *InstallError
+	if err := internal.InstallOracleInstantClient(config); err != nil {
+		var installErr *internal.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {
-			case ErrorTypeDownload:
+			case internal.ErrorTypeDownload:
 				log.Fatal("download failed: ", err)
-			case ErrorTypeInstall:
+			case internal.ErrorTypeInstall:
 				log.Fatal("installation failed: ", err)
-			case ErrorTypeEnvironment:
+			case internal.ErrorTypeEnvironment:
 				log.Fatal("environment setup failed: ", err)
 			default:
 				log.Fatal("unknown error: ", err)
@@ -47,18 +47,18 @@ func main() {
 }
 
 // handleInstallLocation handles the user interaction for user-defined installation path
-func handleInstallLocation(config *InstallConfig) error {
-	if ok := ReqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
-		if change := ReqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
-			newPath := ReqUserInstallPath("Enter desired install path...\n")
+func handleInstallLocation(config *internal.InstallConfig) error {
+	if ok := internal.ReqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
+		if change := internal.ReqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
+			newPath := internal.ReqUserInstallPath("Enter desired install path...\n")
 			config.InstallPath = newPath
 			fmt.Printf("install path set to: %s\n", config.InstallPath)
 		}
 
-		if cont := ReqUserConfirmation("Continue with install?"); !cont {
-			return HandleError(
+		if cont := internal.ReqUserConfirmation("Continue with install?"); !cont {
+			return internal.HandleError(
 				fmt.Errorf("installation aborted by user"),
-				ErrorTypeValidation,
+				internal.ErrorTypeValidation,
 				"user confirmation",
 			)
 		}
