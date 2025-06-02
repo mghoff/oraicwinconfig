@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+
+	"github.com/mghoff/oraicwinconfig/internal/errors"
 )
 
 func main() {
