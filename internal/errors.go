@@ -30,8 +30,8 @@ func (e *InstallError) Unwrap() error {
 	return e.Err
 }
 
-// handleError creates a new InstallError with context
-func handleError(err error, errorType ErrorType, operation string) error {
+// HandleError creates a new InstallError with context
+func HandleError(err error, errorType ErrorType, operation string) error {
 	if err != nil {
 		return &InstallError{
 			Type:      errorType,
