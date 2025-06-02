@@ -1,5 +1,7 @@
 package internal
 
+import "fmt"
+
 const (
 	defaultInstallPath = "C:/OraClient"
 	pkgFileName        = "instantclient-basiclite-windows.zip"
@@ -25,4 +27,24 @@ func NewDefaultConfig() *InstallConfig {
 		SdkFile:     sdkFileName,
 		BaseURL:     baseDownloadURL,
 	}
+}
+
+// Validate checks if the configuration is valid
+// and returns an error if any required fields are missing or invalid.
+func (c *InstallConfig) Validate() error {
+    if c.InstallPath == "" {
+        return HandleError(
+            fmt.Errorf("install path cannot be empty"),
+            ErrorTypeValidation,
+            "config validation",
+        )
+    }
+    if c.DownloadsPath == "" {
+        return HandleError(
+            fmt.Errorf("downloads path cannot be empty"),
+            ErrorTypeValidation,
+            "config validation",
+        )
+    }
+    return nil
 }

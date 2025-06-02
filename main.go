@@ -25,6 +25,11 @@ func main() {
 		log.Fatal("error handling install location: ", err)
 	}
 
+	// Validate configuration before proceeding
+	if err := config.Validate(); err != nil {
+		log.Fatal("invalid configuration: ", err)
+	}
+
 	// Perform installation
 	if err := internal.InstallOracleInstantClient(config); err != nil {
 		var installErr *internal.InstallError
