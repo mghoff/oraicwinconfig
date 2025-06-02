@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log"
 	"context"
+	"time"
 
 	"github.com/mghoff/oraicwinconfig/internal"
 )
 
 func main() {
-	ctx := context.Background()
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
 
 	// Initialize configuration with default values
 	// and set the DownloadsPath to the user's Downloads directory

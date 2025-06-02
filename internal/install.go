@@ -9,27 +9,24 @@ import (
 	"path/filepath"
 	"regexp"
 	"context"
-	"time"
 )
 
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
 func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) error {
-	if _, ok := ctx.Deadline(); !ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
+	if ctx == nil {
+		ctx = context.Background()
 	}
+	// Check for context cancellation
+	if err := ctx.Err(); err != nil {
+		return HandleError(err, ErrorTypeInstall, "context cancellation")
+	}
+
 
 	// INSTALLATION STEPS
 	fmt.Println("Starting Oracle InstantClient installation...")
 	// Set paths for downloads
 	pkgZipPath := filepath.Join(config.DownloadsPath, config.PkgFile)
 	sdkZipPath := filepath.Join(config.DownloadsPath, config.SdkFile)
-
-	// Check for context cancellation
-	if err := ctx.Err(); err != nil {
-		return HandleError(err, ErrorTypeInstall, "context cancellation")
-	}
 
 	// Download package files
 	fmt.Printf("downloading package: %s...\n", pkgZipPath)
@@ -95,6 +92,15 @@ func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) erro
 
 // downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
 func downloadOracleInstantClient(ctx context.Context, urlPath, destPath string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// Check for context cancellation
+	if err := ctx.Err(); err != nil {
+		return HandleError(err, ErrorTypeDownload, "context cancellation")
+	}
+
+	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlPath, nil)
 	if err != nil {
 		return HandleError(err, ErrorTypeDownload, "creating HTTP request")
