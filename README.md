@@ -42,6 +42,7 @@ This executable will perform the following...
 2. Unzip the above files into either the default or the user-specified installation directory.
 3. Add the installation directory to the `PATH` User Environment Variable.
 4. Create two new User Environment Variables (`OCI_LIB64` and `TNS_NAMES`) with associated directory paths.
+    + **Note:** If you have a `tnsnames.ora` file, you must copy it to the directory specified by the `TNS_NAMES` environment variable.
 
 Following successful installation and configuration, you should
 be able to use `RTools` to build `Roracle` from source...
