@@ -9,7 +9,7 @@ This package was built within the context of needing to install and configure fo
 
 `Roracle` often needs built from source, further requiring the installation of [RTools](https://cran.r-project.org/bin/windows/Rtools/).
 
-`RTools` will look for the existince of the `Oracle Instant Client` package within your System or User `Path` Environment Variables during buildtime, so it is imperitive to have this package and its SDK installed and properly configured on your Windows system.
+`RTools` will look for the existence of the `Oracle Instant Client` package within your System or User `Path` Environment Variables during buildtime, so it is imperitive to have this package and its SDK installed and properly configured on your Windows system.
 
 This package aims to do just that.
 
