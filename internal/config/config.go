@@ -1,6 +1,10 @@
-package internal
+package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/mghoff/oraicwinconfig/internal/errs"
+)
 
 const (
 	defaultInstallPath = "C:/OraClient"
@@ -33,16 +37,16 @@ func NewDefaultConfig() *InstallConfig {
 // and returns an error if any required fields are missing or invalid.
 func (c *InstallConfig) Validate() error {
     if c.InstallPath == "" {
-        return HandleError(
+        return errs.HandleError(
             fmt.Errorf("install path cannot be empty"),
-            ErrorTypeValidation,
+            errs.ErrorTypeValidation,
             "config validation",
         )
     }
     if c.DownloadsPath == "" {
-        return HandleError(
+        return errs.HandleError(
             fmt.Errorf("downloads path cannot be empty"),
-            ErrorTypeValidation,
+            errs.ErrorTypeValidation,
             "config validation",
         )
     }
