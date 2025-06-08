@@ -12,20 +12,20 @@ import (
 
 // getUserDestPath retrieves the user profile directory for a given endpoint
 // and checks if the directory exists
-func GetUserDestPath(usrDestPath string) (string, error) {
-	usrDir, err := exec.Command("powershell", "$env:USERPROFILE").Output()
+func GetUserDownloadsPath() (string, error) {
+	usrProfilePath, err := exec.Command("powershell", "$env:USERPROFILE").Output()
 	if err != nil {
 		return "", HandleError(err, ErrorTypeUserPath, "getting user profile directory")
 	}
 
-	dir := filepath.Join(strings.TrimSuffix(string(usrDir), "\r\n"), usrDestPath)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return "", HandleError(fmt.Errorf("directory does not exist: %s", dir), ErrorTypeUserPath, "checking user profile directory")
+	usrDownloadsPath := filepath.Join(strings.TrimSuffix(string(usrProfilePath), "\r\n"), "Downloads")
+	if _, err := os.Stat(usrDownloadsPath); os.IsNotExist(err) {
+		return "", HandleError(fmt.Errorf("directory does not exist: %s", usrDownloadsPath), ErrorTypeUserPath, "checking user profile directory")
 	} else if err != nil {
 		return "", HandleError(err, ErrorTypeUserPath, "checking user profile directory")
 	}
 
-	return dir, nil
+	return usrDownloadsPath, nil
 }
 
 // reqUserConfirmation prompts the user for a yes/no confirmation

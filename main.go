@@ -22,11 +22,11 @@ func main() {
 	// and set the DownloadsPath to the user's Downloads directory
 	config := internal.NewDefaultConfig()
 
-	downloads, err := internal.GetUserDestPath("Downloads")
+	downloadsPath, err := internal.GetUserDownloadsPath()
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}
-	config.DownloadsPath = downloads
+	config.DownloadsPath = downloadsPath
 
 	fmt.Printf("files will be downloaded from '%s' to '%s':\n", config.BaseURL, config.DownloadsPath)
 	fmt.Printf("- %s\n- %s\n\n", config.PkgFile, config.SdkFile)
