@@ -91,7 +91,7 @@ func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) erro
 }
 
 // downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
-func downloadOracleInstantClient(ctx context.Context, urlPath, destPath string) error {
+func downloadOracleInstantClient(ctx context.Context, urlPath, downloadsPath string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -117,7 +117,7 @@ func downloadOracleInstantClient(ctx context.Context, urlPath, destPath string) 
 	defer resp.Body.Close()
 
 	// Create file
-	out, err := os.Create(destPath)
+	out, err := os.Create(downloadsPath)
 	if err != nil {
 		return HandleError(err, ErrorTypeDownload, "creating download file")
 	}
@@ -133,27 +133,28 @@ func downloadOracleInstantClient(ctx context.Context, urlPath, destPath string) 
 
 // unzipOracleInstantClient extracts the Oracle Instant Client zip file to the specified destination path
 // and returns the directory name of the extracted files
-func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
-	// Create base directory
-	if err := os.MkdirAll(destPath, 0777); err != nil {
-		return "", HandleError(err, ErrorTypeInstall, "creating base directory")
+func unzipOracleInstantClient(downloadsPath, installPath string) (string, error) {
+	// Create base install directory
+	if err := os.MkdirAll(installPath, 0777); err != nil {
+		return "", HandleError(err, ErrorTypeInstall, "creating base installation directory")
 	}
 
-	// Open a zip archive for reading.
-	r, err := zip.OpenReader(zipPath)
+	// Open a zip archive for reading.zip files from the Downloads directory
+	r, err := zip.OpenReader(downloadsPath)
 	if err != nil {
 		return "", HandleError(err, ErrorTypeInstall, "opening zip archive")
 	}
 	defer r.Close()
 
-	// Iterate through the files in the archive, printing some of their contents.
+	// Iterate through the files in the zip archive,
+	// and extract contents into the Installation directory
 	var outPath string
 	for k, f := range r.File {
 		re := regexp.MustCompilePOSIX(`^(instantclient_){1}([0-9]{1,2})_([0-9]{1,2})\/$`)
 		if re.Match([]byte(f.Name)) {
 			outPath = f.Name
 		}
-		if err := extractFile(f, destPath); err != nil {
+		if err := extractFile(f, installPath); err != nil {
 			return "", HandleError(err, ErrorTypeInstall, fmt.Sprintf("extracting file %d", k))
 		}
 	}
@@ -169,9 +170,10 @@ func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
 	return outPath, nil
 }
 
-// Helper function to extract a single file from zip
-func extractFile(f *zip.File, destPath string) error {
-	outName := filepath.Join(destPath, f.Name)
+// Helper function to extract a single file from zip archive to specified install path
+// It creates necessary directories and handles file creation
+func extractFile(f *zip.File, installPath string) error {
+	outName := filepath.Join(installPath, f.Name)
 
 	if f.FileInfo().IsDir() {
 		return os.MkdirAll(outName, 0777)
