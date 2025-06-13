@@ -12,7 +12,7 @@ certutil -hashfile %EXECUTABLE% SHA256 | findstr /v "hash" | findstr /v "CertUti
 
 :: Add filename to checksum file
 for /f "tokens=1" %%a in (%CHECKSUM_FILE%) do (
-  echo %%a %EXECUTABLE% > %CHECKSUM_FILE%
+  echo %%a oraicwinconfig.exe > %CHECKSUM_FILE%
 )
 
 echo Generated checksums for %EXECUTABLE%
