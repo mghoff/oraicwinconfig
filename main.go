@@ -7,12 +7,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/mghoff/oraicwinconfig/internal"
+	"github.com/mghoff/oraicwinconfig/internal/config"
+	"github.com/mghoff/oraicwinconfig/internal/errs"
+	"github.com/mghoff/oraicwinconfig/internal/input"
+	"github.com/mghoff/oraicwinconfig/internal/install"
+	"github.com/mghoff/oraicwinconfig/internal/version"
 )
 
 func main() {
 	// Display  version information
-	fmt.Println(internal.GetVersionInfo())
+	fmt.Println(version.GetVersionInfo())
 	
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -20,13 +24,13 @@ func main() {
 
 	// Initialize configuration with default values
 	// and set the DownloadsPath to the user's Downloads directory
-	config := internal.NewDefaultConfig()
+	config := config.NewDefaultConfig()
 
-	downloads, err := internal.GetUserDestPath("Downloads")
+	downloadsPath, err := input.GetUserDownloadsPath()
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}
-	config.DownloadsPath = downloads
+	config.DownloadsPath = downloadsPath
 
 	fmt.Printf("files will be downloaded from '%s' to '%s':\n", config.BaseURL, config.DownloadsPath)
 	fmt.Printf("- %s\n- %s\n\n", config.PkgFile, config.SdkFile)
@@ -42,15 +46,15 @@ func main() {
 	}
 
 	// Perform installation
-	if err := internal.InstallOracleInstantClient(ctx, config); err != nil {
-		var installErr *internal.InstallError
+	if err := install.InstallOracleInstantClient(ctx, config); err != nil {
+		var installErr *errs.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {
-			case internal.ErrorTypeDownload:
+			case errs.ErrorTypeDownload:
 				log.Fatal("download failed: ", err)
-			case internal.ErrorTypeInstall:
+			case errs.ErrorTypeInstall:
 				log.Fatal("installation failed: ", err)
-			case internal.ErrorTypeEnvironment:
+			case errs.ErrorTypeEnvironment:
 				log.Fatal("environment setup failed: ", err)
 			default:
 				log.Fatal("unknown error: ", err)
@@ -63,18 +67,18 @@ func main() {
 }
 
 // handleInstallLocation handles the user interaction for user-defined installation path
-func handleInstallLocation(config *internal.InstallConfig) error {
-	if ok := internal.ReqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
-		if change := internal.ReqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
-			newPath := internal.ReqUserInstallPath("Enter desired install path...\n")
+func handleInstallLocation(config *config.InstallConfig) error {
+	if ok := input.ReqUserConfirmation("Accept the default install location?\n - " + config.InstallPath + "\nSelect"); !ok {
+		if change := input.ReqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
+			newPath := input.ReqUserInstallPath("Enter desired install path...\n")
 			config.InstallPath = newPath
 			fmt.Printf("install path set to: %s\n", config.InstallPath)
 		}
 
-		if cont := internal.ReqUserConfirmation("Continue with install?"); !cont {
-			return internal.HandleError(
+		if cont := input.ReqUserConfirmation("Continue with install?"); !cont {
+			return errs.HandleError(
 				fmt.Errorf("installation aborted by user"),
-				internal.ErrorTypeValidation,
+				errs.ErrorTypeValidation,
 				"user confirmation",
 			)
 		}

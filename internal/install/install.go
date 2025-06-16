@@ -1,4 +1,4 @@
-package internal
+package install
 
 import (
 	"archive/zip"
@@ -9,16 +9,20 @@ import (
 	"path/filepath"
 	"regexp"
 	"context"
+
+	"github.com/mghoff/oraicwinconfig/internal/config"
+	"github.com/mghoff/oraicwinconfig/internal/env"
+	"github.com/mghoff/oraicwinconfig/internal/errs"
 )
 
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
-func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) error {
+func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfig) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
-		return HandleError(err, ErrorTypeInstall, "context cancellation")
+		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
 	}
 
 
@@ -44,21 +48,21 @@ func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) erro
 	fmt.Printf("extracting: %s to %s\n", pkgZipPath, config.InstallPath)
 	pkgDir, err := unzipOracleInstantClient(pkgZipPath, config.InstallPath)
 	if err != nil {
-		return HandleError(err, ErrorTypeInstall, "unzip package")
+		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip package")
 	}
 
 	// Unzip SDK files
 	fmt.Printf("extracting: %s\n", sdkZipPath)
 	sdkDir, err := unzipOracleInstantClient(sdkZipPath, config.InstallPath)
 	if err != nil {
-		return HandleError(err, ErrorTypeInstall, "unzip SDK")
+		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip SDK")
 	}
 
 	// Verify version match
 	if pkgDir != sdkDir {
-		return HandleError(
+		return errs.HandleError(
 			fmt.Errorf("package version (%s) does not match SDK version (%s)", pkgDir, sdkDir),
-			ErrorTypeInstall,
+			errs.ErrorTypeInstall,
 			"version verification",
 		)
 	}
@@ -67,7 +71,7 @@ func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) erro
 	// CONFIGURATION STEPS
 	fmt.Println("Configuring Oracle InstantClient...")
 	// Setup environment variables
-	envManager := NewEnvVarManager()
+	envManager := env.NewEnvVarManager()
 
 	ociLibPath := filepath.Join(config.InstallPath, pkgDir)
 	fmt.Printf("setting OCI_LIB64=%s\n", ociLibPath)
@@ -91,77 +95,78 @@ func InstallOracleInstantClient(ctx context.Context, config *InstallConfig) erro
 }
 
 // downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
-func downloadOracleInstantClient(ctx context.Context, urlPath, destPath string) error {
+func downloadOracleInstantClient(ctx context.Context, urlPath, downloadsPath string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
-		return HandleError(err, ErrorTypeDownload, "context cancellation")
+		return errs.HandleError(err, errs.ErrorTypeDownload, "context cancellation")
 	}
 
 	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlPath, nil)
 	if err != nil {
-		return HandleError(err, ErrorTypeDownload, "creating HTTP request")
+		return errs.HandleError(err, errs.ErrorTypeDownload, "creating HTTP request")
 	}
 
 	// Get zip archive from URL
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return HandleError(err, ErrorTypeDownload, "downloading from URL")
+		return errs.HandleError(err, errs.ErrorTypeDownload, "downloading from URL")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return HandleError(fmt.Errorf("HTTP status %s", resp.Status), ErrorTypeDownload, "checking response status")
+		return errs.HandleError(fmt.Errorf("HTTP status %s", resp.Status), errs.ErrorTypeDownload, "checking response status")
 	}
 	defer resp.Body.Close()
 
 	// Create file
-	out, err := os.Create(destPath)
+	out, err := os.Create(downloadsPath)
 	if err != nil {
-		return HandleError(err, ErrorTypeDownload, "creating download file")
+		return errs.HandleError(err, errs.ErrorTypeDownload, "creating download file")
 	}
 	defer out.Close()
 
 	// Write response body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return HandleError(err, ErrorTypeDownload, "writing download to file")
+		return errs.HandleError(err, errs.ErrorTypeDownload, "writing download to file")
 	}
 	return nil
 }
 
 // unzipOracleInstantClient extracts the Oracle Instant Client zip file to the specified destination path
 // and returns the directory name of the extracted files
-func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
-	// Create base directory
-	if err := os.MkdirAll(destPath, 0777); err != nil {
-		return "", HandleError(err, ErrorTypeInstall, "creating base directory")
+func unzipOracleInstantClient(downloadsPath, installPath string) (string, error) {
+	// Create base install directory
+	if err := os.MkdirAll(installPath, 0777); err != nil {
+		return "", errs.HandleError(err, errs.ErrorTypeInstall, "creating base installation directory")
 	}
 
-	// Open a zip archive for reading.
-	r, err := zip.OpenReader(zipPath)
+	// Open a zip archive for reading.zip files from the Downloads directory
+	r, err := zip.OpenReader(downloadsPath)
 	if err != nil {
-		return "", HandleError(err, ErrorTypeInstall, "opening zip archive")
+		return "", errs.HandleError(err, errs.ErrorTypeInstall, "opening zip archive")
 	}
 	defer r.Close()
 
-	// Iterate through the files in the archive, printing some of their contents.
+	// Iterate through the files in the zip archive,
+	// and extract contents into the Installation directory
 	var outPath string
 	for k, f := range r.File {
 		re := regexp.MustCompilePOSIX(`^(instantclient_){1}([0-9]{1,2})_([0-9]{1,2})\/$`)
 		if re.Match([]byte(f.Name)) {
 			outPath = f.Name
 		}
-		if err := extractFile(f, destPath); err != nil {
-			return "", HandleError(err, ErrorTypeInstall, fmt.Sprintf("extracting file %d", k))
+		if err := extractFile(f, installPath); err != nil {
+			return "", errs.HandleError(err, errs.ErrorTypeInstall, fmt.Sprintf("extracting file %d", k))
 		}
 	}
 
 	if outPath == "" {
-		return "", HandleError(
+		return "", errs.HandleError(
 			fmt.Errorf("no valid instant client directory found in zip"),
-			ErrorTypeInstall,
+			errs.ErrorTypeInstall,
 			"validating zip contents",
 		)
 	}
@@ -169,9 +174,10 @@ func unzipOracleInstantClient(zipPath, destPath string) (string, error) {
 	return outPath, nil
 }
 
-// Helper function to extract a single file from zip
-func extractFile(f *zip.File, destPath string) error {
-	outName := filepath.Join(destPath, f.Name)
+// Helper function to extract a single file from zip archive to specified install path
+// It creates necessary directories and handles file creation
+func extractFile(f *zip.File, installPath string) error {
+	outName := filepath.Join(installPath, f.Name)
 
 	if f.FileInfo().IsDir() {
 		return os.MkdirAll(outName, 0777)

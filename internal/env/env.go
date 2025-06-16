@@ -1,9 +1,11 @@
-package internal
+package env
 
 import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/mghoff/oraicwinconfig/internal/errs"
 )
 
 // EnvVarManager handles environment variable operations
@@ -23,7 +25,7 @@ func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
 	out, err := exec.Command(e.powershell, cmd).Output()
 	if err != nil {
-		return "", HandleError(err, ErrorTypeEnvironment, fmt.Sprintf("getting %s environment variable", name))
+		return "", errs.HandleError(err, errs.ErrorTypeEnvironment, fmt.Sprintf("getting %s environment variable", name))
 	}
 	return strings.TrimSuffix(string(out), "\r\n"), nil
 }
@@ -32,7 +34,7 @@ func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 func (e *EnvVarManager) SetEnvVar(name, value string) error {
 	cmd := fmt.Sprintf("[Environment]::SetEnvironmentVariable('%s', '%s', 'User')", name, value)
 	if _, err := exec.Command(e.powershell, cmd).Output(); err != nil {
-		return HandleError(err, ErrorTypeEnvironment, fmt.Sprintf("setting %s environment variable", name))
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, fmt.Sprintf("setting %s environment variable", name))
 	}
 	return nil
 }

@@ -1,9 +1,8 @@
 # oraicwinconfig
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
-A Go CLI tool to install and configure [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html)
-on Windows 11 for use by Oracle's very own R package: [ROracle](https://www.oracle.com/database/technologies/appdev/roracle.html)
+A Go CLI tool to install and configure [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html) on Windows 11 for use by Oracle's very own R package: [ROracle](https://www.oracle.com/database/technologies/appdev/roracle.html)
 
 ## Background
 
@@ -24,8 +23,8 @@ This package aims to do just that.
 
 ### Option 1: Download the Pre-Built Binary
 1. Go to the [Releases](https://github.com/mghoff/oraicwinconfig/releases) page
-2. Download the latest `oraicwinconfig.exe`
-3. Run the executable and follow the prompts
+2. Download the latest executable file: `oraicwinconfig.exe`
+3. Run the executable file and follow the prompts
 
 ### Option 2: Build from Source
 Clone this repository and build using Go:
@@ -35,19 +34,18 @@ cd oraicwinconfig
 .\scripts\build.cmd
 ```
 
-Following a successful build, the `oraicwinconfig.exe` executable will be created in `.\dist` which you can then run and follow the prompts therein.
+Following a successful build, a `.\bin` folder will have been created which contains the `oraicwinconfig.exe` executable file along with a `SHA256SUMS` file. You can then run the exectuable file and follow the prompts in your command terminal.
 
 ## Details:
 
 This executable will perform the following...
 1. Download into the user's Downloads folder the Windows-specific `Oracle Instant Client Basic Lite` package and SDK zip files.
-2. Unzip the above files into either the default or the user-specified installation directory.
+2. Unzip the above files into either the specified installation directory.
 3. Add the installation directory to the `PATH` User Environment Variable.
-4. Create two new User Environment Variables (`OCI_LIB64` and `TNS_NAMES`) with associated directory paths.
+4. Create two new User Environment Variables (`OCI_LIB64` and `TNS_NAMES`) and assign their respective directory paths.
     + **Note:** If you have a `tnsnames.ora` file, you must copy it to the directory specified by the `TNS_NAMES` environment variable.
 
-Following successful installation and configuration, you should
-be able to use `RTools` to build `Roracle` from source...
+Following successful installation and configuration, you should be able to use `RTools` to build `Roracle` from source...
 
 In R, run: 
 ```

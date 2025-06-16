@@ -1,11 +1,14 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Set version number
-set VERSION=0.1.0
+:: Set version number, build location, executable name, and checksum file
+set VERSION=0.1.1
+set BUILDLOC=bin
+set EXECUTABLE=oraicwinconfig.exe
+set CHECKSUM_FILE=SHA256SUMS
 
-:: Create dist directory if it doesn't exist
-if not exist "dist" mkdir dist
+:: Create bin directory if it doesn't exist
+if not exist "bin" mkdir bin
 
 :: Get build timestamp
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
@@ -18,17 +21,19 @@ for /f %%I in ('git rev-parse HEAD') do set COMMIT=%%I
 for /f "tokens=3" %%I in ('go version') do set GOVERSION=%%I
 
 :: Build the executable with version information
-echo Building version %VERSION%...
-go build -o dist\oraicwinconfig.exe -ldflags ^
-"-X github.com/mghoff/oraicwinconfig/internal.Version=%VERSION% ^
- -X github.com/mghoff/oraicwinconfig/internal.BuildTime=%BUILDTIME% ^
- -X github.com/mghoff/oraicwinconfig/internal.GitCommit=%COMMIT% ^
- -X github.com/mghoff/oraicwinconfig/internal.GoVersion=%GOVERSION%"
+echo Building %EXECUTABLE% version %VERSION%...
+go build -o %BUILDLOC%\%EXECUTABLE% -ldflags ^
+"-X github.com/mghoff/oraicwinconfig/internal/version.Version=%VERSION% ^
+ -X github.com/mghoff/oraicwinconfig/internal/version.BuildTime=%BUILDTIME% ^
+ -X github.com/mghoff/oraicwinconfig/internal/version.GitCommit=%COMMIT% ^
+ -X github.com/mghoff/oraicwinconfig/internal/version.GoVersion=%GOVERSION%"
 
 :: Generate checksums using certutil
-certutil -hashfile dist\oraicwinconfig.exe SHA256 | findstr /v "hash" | findstr /v "CertUtil" > dist\SHA256SUMS
-for /f "tokens=1" %%a in (dist\SHA256SUMS) do (
-    echo %%a  oraicwinconfig.exe> dist\SHA256SUMS
+certutil -hashfile %BUILDLOC%\%EXECUTABLE% SHA256 | findstr /v "hash" | findstr /v "CertUtil" > %BUILDLOC%\%CHECKSUM_FILE%
+
+:: Append the executable name to the checksum file
+for /f "tokens=1" %%a in (%BUILDLOC%\%CHECKSUM_FILE%) do (
+  echo %%a %EXECUTABLE%> %BUILDLOC%\%CHECKSUM_FILE%
 )
 
-echo Build v%VERSION% complete!
+echo Build %EXECUTABLE% v%VERSION% complete
