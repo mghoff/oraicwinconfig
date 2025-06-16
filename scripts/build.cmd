@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: Set version number, build location, executable name, and checksum file
-set VERSION=0.1.0
+set VERSION=0.1.1
 set BUILDLOC=bin
 set EXECUTABLE=oraicwinconfig.exe
 set CHECKSUM_FILE=SHA256SUMS

@@ -31,7 +31,7 @@ Clone this repository and build using Go:
 ```bash
 git clone https://github.com/mghoff/oraicwinconfig.git
 cd oraicwinconfig
-.\cmd\build.cmd
+.\scripts\build.cmd
 ```
 
 Following a successful build, a `.\bin` folder will have been created which contains the `oraicwinconfig.exe` executable file along with a `SHA256SUMS` file. You can then run the exectuable file and follow the prompts in your command terminal.
