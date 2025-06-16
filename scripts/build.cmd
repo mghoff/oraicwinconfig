@@ -23,10 +23,10 @@ for /f "tokens=3" %%I in ('go version') do set GOVERSION=%%I
 :: Build the executable with version information
 echo Building %EXECUTABLE% version %VERSION%...
 go build -o %BUILDLOC%\%EXECUTABLE% -ldflags ^
-"-X github.com/mghoff/oraicwinconfig/internal.Version=%VERSION% ^
- -X github.com/mghoff/oraicwinconfig/internal.BuildTime=%BUILDTIME% ^
- -X github.com/mghoff/oraicwinconfig/internal.GitCommit=%COMMIT% ^
- -X github.com/mghoff/oraicwinconfig/internal.GoVersion=%GOVERSION%"
+"-X github.com/mghoff/oraicwinconfig/internal/version.Version=%VERSION% ^
+ -X github.com/mghoff/oraicwinconfig/internal/version.BuildTime=%BUILDTIME% ^
+ -X github.com/mghoff/oraicwinconfig/internal/version.GitCommit=%COMMIT% ^
+ -X github.com/mghoff/oraicwinconfig/internal/version.GoVersion=%GOVERSION%"
 
 :: Generate checksums using certutil
 certutil -hashfile %BUILDLOC%\%EXECUTABLE% SHA256 | findstr /v "hash" | findstr /v "CertUtil" > %BUILDLOC%\%CHECKSUM_FILE%
