@@ -50,7 +50,6 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip package")
 	}
-	pkgDir = filepath.Clean(pkgDir) // Ensure no trailing slashes
 
 	// Unzip SDK files
 	fmt.Printf("extracting: %s\n", sdkZipPath)
@@ -58,7 +57,6 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip SDK")
 	}
-	sdkDir = filepath.Clean(sdkDir)
 
 	// Verify version match
 	if pkgDir != sdkDir {
@@ -177,7 +175,7 @@ func unzipOracleInstantClient(downloadsPath, installPath string) (string, error)
 		)
 	}
 
-	return outPath, nil
+	return filepath.Clean(outPath), nil
 }
 
 // Helper function to extract a single file from zip archive to specified install path
