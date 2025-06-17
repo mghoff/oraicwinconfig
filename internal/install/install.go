@@ -16,7 +16,7 @@ import (
 )
 
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
-func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfig) error {
+func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfig, env *env.EnvVarManager) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -70,9 +70,6 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 
 	// CONFIGURATION STEPS
 	fmt.Println("Configuring Oracle InstantClient...")
-	
-	// Setup environment variables
-	env := env.New()
 
 	// Set OCI_LIB64 environment variable
 	ociLibPath := filepath.Join(config.InstallPath, pkgDir)

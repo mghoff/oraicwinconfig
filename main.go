@@ -48,7 +48,7 @@ func main() {
 	}
 
 	// Perform installation
-	if err := install.InstallOracleInstantClient(ctx, config); err != nil {
+	if err := install.InstallOracleInstantClient(ctx, config, env); err != nil {
 		var installErr *errs.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {
