@@ -74,25 +74,25 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 	fmt.Println("Configuring Oracle InstantClient...")
 	
 	// Setup environment variables
-	envManager := env.New()
+	env := env.New()
 
 	// Set OCI_LIB64 environment variable
 	ociLibPath := filepath.Join(config.InstallPath, pkgDir)
 	fmt.Printf("setting OCI_LIB64=%s\n", ociLibPath)
-	if err := envManager.SetEnvVar("OCI_LIB64", ociLibPath); err != nil {
+	if err := env.SetEnvVar("OCI_LIB64", ociLibPath); err != nil {
 		return err
 	}
 
 	// Add OCI_LIB64 to PATH
 	fmt.Printf("updating PATH to include %s\n", ociLibPath)
-	if err := envManager.AppendToPath(ociLibPath); err != nil {
+	if err := env.AppendToPath(ociLibPath); err != nil {
 		return err
 	}
 
 	// Set TNS_ADMIN environment variable
 	tnsAdminPath := filepath.Join(ociLibPath, "network", "admin")
 	fmt.Printf("setting TNS_ADMIN=%s\n", tnsAdminPath)
-	if err := envManager.SetEnvVar("TNS_ADMIN", tnsAdminPath); err != nil {
+	if err := env.SetEnvVar("TNS_ADMIN", tnsAdminPath); err != nil {
 		return err
 	}
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mghoff/oraicwinconfig/internal/config"
+	"github.com/mghoff/oraicwinconfig/internal/env"
 	"github.com/mghoff/oraicwinconfig/internal/errs"
 	"github.com/mghoff/oraicwinconfig/internal/input"
 	"github.com/mghoff/oraicwinconfig/internal/install"
@@ -25,8 +26,9 @@ func main() {
 	// Initialize configuration with default values
 	// and set the DownloadsPath to the user's Downloads directory
 	config := config.New()
+	env := env.New()
 
-	downloadsPath, err := input.FetchUserDownloadsPath()
+	downloadsPath, err := env.FetchUserDownloadsPath()
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}

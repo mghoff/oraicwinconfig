@@ -5,30 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
-
-	"github.com/mghoff/oraicwinconfig/internal/errs"
 )
-
-// FetchUserDownloadsPath retrieves the user profile directory for a given endpoint
-// and checks if the directory exists
-func FetchUserDownloadsPath() (string, error) {
-	usrProfilePath, err := exec.Command("powershell", "$env:USERPROFILE").Output()
-	if err != nil {
-		return "", errs.HandleError(err, errs.ErrorTypeUserPath, "getting user profile directory")
-	}
-
-	usrDownloadsPath := filepath.Join(strings.TrimSuffix(string(usrProfilePath), "\r\n"), "Downloads")
-	if _, err := os.Stat(usrDownloadsPath); os.IsNotExist(err) {
-		return "", errs.HandleError(fmt.Errorf("directory does not exist: %s", usrDownloadsPath), errs.ErrorTypeUserPath, "checking user profile directory")
-	} else if err != nil {
-		return "", errs.HandleError(err, errs.ErrorTypeUserPath, "checking user profile directory")
-	}
-
-	return usrDownloadsPath, nil
-}
 
 // reqUserConfirmation prompts the user for a yes/no confirmation
 // and returns true for 'y' and false for 'n'
