@@ -12,9 +12,9 @@ import (
 	"github.com/mghoff/oraicwinconfig/internal/errs"
 )
 
-// getUserDownloadsPath retrieves the user profile directory for a given endpoint
+// FetchUserDownloadsPath retrieves the user profile directory for a given endpoint
 // and checks if the directory exists
-func GetUserDownloadsPath() (string, error) {
+func FetchUserDownloadsPath() (string, error) {
 	usrProfilePath, err := exec.Command("powershell", "$env:USERPROFILE").Output()
 	if err != nil {
 		return "", errs.HandleError(err, errs.ErrorTypeUserPath, "getting user profile directory")

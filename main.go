@@ -16,7 +16,7 @@ import (
 
 func main() {
 	// Display  version information
-	fmt.Println(version.GetVersionInfo())
+	fmt.Println(version.FetchVersionInfo())
 	
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -26,7 +26,7 @@ func main() {
 	// and set the DownloadsPath to the user's Downloads directory
 	config := config.New()
 
-	downloadsPath, err := input.GetUserDownloadsPath()
+	downloadsPath, err := input.FetchUserDownloadsPath()
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}
