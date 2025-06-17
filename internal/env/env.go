@@ -60,6 +60,15 @@ func (e *EnvVarManager) SetEnvVar(name, value string) error {
 	return nil
 }
 
+// RemoveEnvVar removes a user environment variable
+func (e *EnvVarManager) RemoveEnvVar(name string) error {
+	cmd := fmt.Sprintf("[Environment]::SetEnvironmentVariable('%s', $null, 'User')", name)
+	if _, err := exec.Command(e.powershell, cmd).Output(); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, fmt.Sprintf("removing %s environment variable", name))
+	}
+	return nil
+}
+
 // AppendToPath adds a new path to the PATH environment variable
 func (e *EnvVarManager) AppendToPath(newPath string) error {
 	currentPath, err := e.GetEnvVar("PATH")
@@ -80,4 +89,27 @@ func (e *EnvVarManager) AppendToPath(newPath string) error {
 
 	newFullPath := currentPath + newPath + ";"
 	return e.SetEnvVar("PATH", newFullPath)
+}
+
+// removeFromPath removes a specified path from the PATH environment variable
+func (e *EnvVarManager) RemoveFromPath(pathToRemove string) error {
+	currentPath, err := e.GetEnvVar("PATH")
+	if err != nil {
+		return err
+	}
+
+	// Split the current PATH into segments
+	segments := strings.Split(currentPath, ";")
+	var newSegments []string
+
+	// Filter out the segment to remove
+	for _, segment := range segments {
+		if segment != pathToRemove {
+			newSegments = append(newSegments, segment)
+		}
+	}
+
+	// Join the remaining segments back into a single string
+	newPath := strings.Join(newSegments, ";")
+	return e.SetEnvVar("PATH", newPath)
 }
