@@ -50,6 +50,7 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip package")
 	}
+	pkgDir = filepath.Clean(pkgDir) // Ensure no trailing slashes
 
 	// Unzip SDK files
 	fmt.Printf("extracting: %s\n", sdkZipPath)
@@ -57,6 +58,7 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip SDK")
 	}
+	sdkDir = filepath.Clean(sdkDir)
 
 	// Verify version match
 	if pkgDir != sdkDir {
@@ -70,20 +72,24 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 
 	// CONFIGURATION STEPS
 	fmt.Println("Configuring Oracle InstantClient...")
+	
 	// Setup environment variables
-	envManager := env.NewEnvVarManager()
+	envManager := env.New()
 
+	// Set OCI_LIB64 environment variable
 	ociLibPath := filepath.Join(config.InstallPath, pkgDir)
 	fmt.Printf("setting OCI_LIB64=%s\n", ociLibPath)
 	if err := envManager.SetEnvVar("OCI_LIB64", ociLibPath); err != nil {
 		return err
 	}
 
+	// Add OCI_LIB64 to PATH
 	fmt.Printf("updating PATH to include %s\n", ociLibPath)
 	if err := envManager.AppendToPath(ociLibPath); err != nil {
 		return err
 	}
 
+	// Set TNS_ADMIN environment variable
 	tnsAdminPath := filepath.Join(ociLibPath, "network", "admin")
 	fmt.Printf("setting TNS_ADMIN=%s\n", tnsAdminPath)
 	if err := envManager.SetEnvVar("TNS_ADMIN", tnsAdminPath); err != nil {

@@ -24,7 +24,7 @@ func main() {
 
 	// Initialize configuration with default values
 	// and set the DownloadsPath to the user's Downloads directory
-	config := config.NewDefaultConfig()
+	config := config.New()
 
 	downloadsPath, err := input.GetUserDownloadsPath()
 	if err != nil {

@@ -14,7 +14,7 @@ type EnvVarManager struct {
 }
 
 // NewEnvVarManager creates a new environment variable manager
-func NewEnvVarManager() *EnvVarManager {
+func New() *EnvVarManager {
 	return &EnvVarManager{
 		powershell: "powershell",
 	}
