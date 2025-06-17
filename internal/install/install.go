@@ -15,6 +15,42 @@ import (
 	"github.com/mghoff/oraicwinconfig/internal/errs"
 )
 
+func UninstallOracleInstantClient(ctx context.Context, config *config.InstallConfig, env *env.EnvVarManager) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// Check for context cancellation
+	if err := ctx.Err(); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
+	}
+
+	fmt.Println("Uninstalling Oracle InstantClient...")
+
+	// Remove OCI_LIB64 from PATH
+	if err := env.RemoveFromPath(env.GetEnvVar("OCI_LIB64")); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing OCI_LIB64 from PATH")
+	}
+
+	// Remove OCI_LIB64 environment variable
+	if err := env.RemoveEnvVar("OCI_LIB64"); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing OCI_LIB64")
+	}
+
+	// Remove TNS_ADMIN environment variable
+	if err := env.RemoveEnvVar("TNS_ADMIN"); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing TNS_ADMIN")
+	}
+
+	// Remove installation directory
+	if err := os.RemoveAll(config.InstallPath); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "removing installation directory")
+	}
+
+	fmt.Println("Oracle InstantClient uninstalled successfully!")
+	return nil
+}
+
+
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
 func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfig, env *env.EnvVarManager) error {
 	if ctx == nil {
