@@ -24,7 +24,7 @@ type InstallConfig struct {
 
 // NewDefaultConfig creates a new configuration with default values
 // and returns a pointer to it
-func NewDefaultConfig() *InstallConfig {
+func New() *InstallConfig {
 	return &InstallConfig{
 		InstallPath: defaultInstallPath,
 		PkgFile:     pkgFileName,

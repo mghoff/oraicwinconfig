@@ -1,7 +1,9 @@
 package env
 
 import (
+	"path/filepath"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -14,10 +16,29 @@ type EnvVarManager struct {
 }
 
 // NewEnvVarManager creates a new environment variable manager
-func NewEnvVarManager() *EnvVarManager {
+func New() *EnvVarManager {
 	return &EnvVarManager{
 		powershell: "powershell",
 	}
+}
+
+// FetchUserDownloadsPath retrieves the user profile directory for a given endpoint
+// and checks if the directory exists
+func (e *EnvVarManager) FetchUserDownloadsPath() (string, error) {
+	cmd := "$env:USERPROFILE"
+	usrProfilePath, err := exec.Command(e.powershell, cmd).Output()
+	if err != nil {
+		return "", errs.HandleError(err, errs.ErrorTypeUserPath, "getting user profile directory")
+	}
+
+	usrDownloadsPath := filepath.Join(strings.TrimSuffix(string(usrProfilePath), "\r\n"), "Downloads")
+	if _, err := os.Stat(usrDownloadsPath); os.IsNotExist(err) {
+		return "", errs.HandleError(fmt.Errorf("directory does not exist: %s", usrDownloadsPath), errs.ErrorTypeUserPath, "checking user profile directory")
+	} else if err != nil {
+		return "", errs.HandleError(err, errs.ErrorTypeUserPath, "checking user profile directory")
+	}
+
+	return usrDownloadsPath, nil
 }
 
 // GetEnvVar retrieves a user environment variable
