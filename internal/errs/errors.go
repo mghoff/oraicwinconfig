@@ -42,3 +42,11 @@ func HandleError(err error, errorType ErrorType, operation string) error {
 	}
 	return nil
 }
+
+// IsErrorType checks if the error is of a specific InstallError type
+func IsErrorType(err error, errorType ErrorType) bool {
+	if installErr, ok := err.(*InstallError); ok {
+		return installErr.Type == errorType
+	}
+	return false
+}
