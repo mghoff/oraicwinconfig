@@ -9,6 +9,7 @@ const (
 	ErrorTypeDownload ErrorType = iota
 	ErrorTypeInstall
 	ErrorTypeEnvironment
+	ErrorTypeEnvVarNotFound
 	ErrorTypeValidation
 	ErrorTypeUserPath
 )

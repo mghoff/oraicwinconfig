@@ -46,7 +46,7 @@ func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
 	out, err := exec.Command(e.powershell, cmd).Output()
 	if err != nil {
-		return "", errs.HandleError(err, errs.ErrorTypeEnvironment, fmt.Sprintf("getting %s environment variable", name))
+		return "", errs.HandleError(err, errs.ErrorTypeEnvVarNotFound, fmt.Sprintf("getting %s environment variable", name))
 	}
 	return filepath.Clean(out), nil
 }
