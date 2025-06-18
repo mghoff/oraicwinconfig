@@ -36,19 +36,19 @@ func New() *InstallConfig {
 // Validate checks if the configuration is valid
 // and returns an error if any required fields are missing or invalid.
 func (c *InstallConfig) Validate() error {
-    if c.InstallPath == "" {
-        return errs.HandleError(
-            fmt.Errorf("install path cannot be empty"),
-            errs.ErrorTypeValidation,
-            "config validation",
-        )
-    }
-    if c.DownloadsPath == "" {
-        return errs.HandleError(
-            fmt.Errorf("downloads path cannot be empty"),
-            errs.ErrorTypeValidation,
-            "config validation",
-        )
-    }
-    return nil
+	if c.InstallPath == "" {
+		return errs.HandleError(
+			fmt.Errorf("install path cannot be empty"),
+			errs.ErrorTypeValidation,
+			"config validation",
+		)
+	}
+	if c.DownloadsPath == "" {
+		return errs.HandleError(
+			fmt.Errorf("downloads path cannot be empty"),
+			errs.ErrorTypeValidation,
+			"config validation",
+		)
+	}
+	return nil
 }
