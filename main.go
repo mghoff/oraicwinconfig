@@ -47,6 +47,11 @@ func main() {
 		log.Fatal("invalid configuration: ", err)
 	}
 
+	// Handle existing installation
+	if err := handleCurrentInstall(config, env); err != nil {
+		log.Fatal("error handling current installation: ", err)
+	}
+
 	// Perform installation
 	if err := install.InstallOracleInstantClient(ctx, config, env); err != nil {
 		var installErr *errs.InstallError
@@ -83,6 +88,81 @@ func handleInstallLocation(config *config.InstallConfig) error {
 				errs.ErrorTypeValidation,
 				"user confirmation",
 			)
+		}
+	}
+	return nil
+}
+
+func handleCurrentInstall(config *config.InstallConfig, env *env.EnvVarManager) error {
+	// Check for existing environment variables that indicate an Oracle InstantClient installation
+	// Check if OCI_LIB64 environment variable exists
+	ociEnvVarExists, err := env.CheckEnvVarExists("OCI_LIB64")
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, "checking OCI_LIB64 environment variable")
+	}
+	fmt.Printf("OCI_LIB64 environment variable exists: %t\n", ociEnvVarExists)
+
+	// Check if TNS_ADMIN environment variable exists
+	tnsEnvVarExists, err := env.CheckEnvVarExists("TNS_ADMIN")
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, "checking TNS_ADMIN environment variable")
+	}
+	fmt.Printf("TNS_ADMIN environment variable exists: %t\n", tnsEnvVarExists)
+
+	// If neither OCI_LIB64 nor TNS_ADMIN exists, no existing installation is found
+	if !ociEnvVarExists && !tnsEnvVarExists {
+		fmt.Println("No existing Oracle InstantClient installation found.")
+		return nil
+	}
+	
+	// If either OCI_LIB64 or TNS_ADMIN exist, prompt user for confirmation to uninstall	
+	const foundInstallNotice = "An existing installation of Oracle InstantClient has been found..."
+	fmt.Println(foundInstallNotice)
+	const uninstallPrompt = "Do you wish to uninstall the existing Oracle InstantClient installation?\nSelect"
+	if ok := input.ReqUserConfirmation(uninstallPrompt); ok {
+		if err := install.UninstallOracleInstantClient(context.Background(), config, env); err != nil {
+			return errs.HandleError(err, errs.ErrorTypeInstall, "uninstalling existing Oracle Instant Client")
+		}
+		fmt.Println("Existing Oracle InstantClient uninstalled successfully.")
+	} else {
+		fmt.Println("Existing Oracle InstantClient installation will remain in place.")
+		fmt.Println("The following environment variables will be set or overwritten:")
+		if ociEnvVarExists && tnsEnvVarExists {
+			fmt.Println("\tOCI_LIB64")
+			fmt.Println("\tTNS_ADMIN")
+		} else if ociEnvVarExists {
+			fmt.Println("\tOCI_LIB64 environment variable will be overwritten.")
+			fmt.Println("\tTNS_ADMIN environment variable will be set.")
+		} else if tnsEnvVarExists {
+			fmt.Println("\tOCI_LIB64 environment variable will be set.")
+			fmt.Println("\tTNS_ADMIN environment variable will be overwritten.")
+		} else {
+			fmt.Println("\tOCI_LIB64 and TNS_ADMIN environment variables will be set.")
+		}
+		
+		if !input.ReqUserConfirmation("Do you wish to continue with the new installation?\nSelect") {
+			return errs.HandleError(
+				fmt.Errorf("installation aborted by user"),
+				errs.ErrorTypeValidation,
+				"user confirmation",
+			)
+		}
+		fmt.Println("Continuing with the new installation...")
+		fmt.Println("Note: The existing installation will not be removed, and the new installation will overwrite the existing environment variables.")
+		fmt.Println("You may need to manually remove the existing installation if it causes conflicts.")
+		fmt.Println("Proceeding with the new installation...")
+		// Remove OCI_LIB64 from PATH if it exists
+		ociLib64Path, err := env.GetEnvVar("OCI_LIB64")
+		if err != nil && !errs.IsErrorType(err, errs.ErrorTypeEnvVarNotFound) {
+			return errs.HandleError(err, errs.ErrorTypeEnvironment, "getting OCI_LIB64 environment variable")
+		}
+		if ociLib64Path != "" {
+			if err := env.RemoveFromPath(ociLib64Path); err != nil {
+				return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing OCI_LIB64 from PATH")
+			}
+			fmt.Printf("Removed OCI_LIB64 path '%s' from PATH environment variable.\n", ociLib64Path)
+		} else {
+			fmt.Println("OCI_LIB64 environment variable not found in PATH, no action taken.")
 		}
 	}
 	return nil
