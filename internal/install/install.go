@@ -27,7 +27,15 @@ func UninstallOracleInstantClient(ctx context.Context, config *config.InstallCon
 	fmt.Println("Uninstalling Oracle InstantClient...")
 
 	// Remove OCI_LIB64 from PATH
-	if err := env.RemoveFromPath(env.GetEnvVar("OCI_LIB64")); err != nil {
+	envVar, err := env.GetEnvVar("OCI_LIB64")
+	if err != nil {
+		if errs.IsErrorType(err, errs.ErrorTypeEnvVarNotFound) {
+			fmt.Println("OCI_LIB64 environment variable not found, skipping removal from PATH.")
+			return nil
+		}
+		return errs.HandleError(err, errs.ErrorTypeEnvironment, "getting OCI_LIB64 environment variable")
+	}
+	if err := env.RemoveFromPath(envVar); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing OCI_LIB64 from PATH")
 	}
 
