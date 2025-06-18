@@ -48,7 +48,7 @@ func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 	if err != nil {
 		return "", errs.HandleError(err, errs.ErrorTypeEnvironment, fmt.Sprintf("getting %s environment variable", name))
 	}
-	return strings.TrimSuffix(string(out), "\r\n"), nil
+	return filepath.Clean(out), nil
 }
 
 // SetEnvVar sets a user environment variable
