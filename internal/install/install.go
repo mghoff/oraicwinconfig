@@ -9,16 +9,104 @@ import (
 	"path/filepath"
 	"regexp"
 	"context"
+	"strings"
 
 	"github.com/mghoff/oraicwinconfig/internal/config"
 	"github.com/mghoff/oraicwinconfig/internal/env"
 	"github.com/mghoff/oraicwinconfig/internal/errs"
 )
 
-func UninstallOracleInstantClient(ctx context.Context, config *config.InstallConfig, env *env.EnvVarManager) error {
+// ensureContext returns context.Background() if ctx is nil, otherwise returns ctx.
+func ensureContext(ctx context.Context) context.Context {
 	if ctx == nil {
-		ctx = context.Background()
+		return context.Background()
 	}
+	return ctx
+}
+
+// InstallExists checks if Oracle InstantClient is already installed
+func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) (bool, error) {
+	ctx = ensureContext(ctx)
+	// Check for context cancellation
+	if err := ctx.Err(); err != nil {
+		return false, errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
+	}
+
+	fmt.Println("Checking for existing Oracle InstantClient installation...")
+
+	// Check if OCI_LIB64 environment variable exists
+	ociLibPath, err := env.GetEnvVar("OCI_LIB64")
+	if err != nil {
+		if errs.IsErrorType(err, errs.ErrorTypeEnvVarNotFound) {
+			fmt.Println("No existing installation detected. Coninuing with fresh installation...")
+			return false, nil
+		}
+		return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "getting OCI_LIB64 environment variable")
+	}
+	if ociLibPath == "" {
+		fmt.Println("OCI_LIB64 environment variable is set but empty, indicating a misconfigured existing installation.")
+		return false, nil
+	}
+	fmt.Printf("OCI_LIB64 environment variable found: %s\n", ociLibPath)
+	// If OCI_LIB64 exists, check if it points to a valid directory
+	// This is the directory where the Oracle Instant Client files are expected to be located
+	ociLibPath = filepath.Clean(ociLibPath)
+	if _, err := os.Stat(ociLibPath); os.IsNotExist(err) {
+		fmt.Println("OCI_LIB64 environment variable is set, but the path does not point to a valid directory. This indicates a misconfigured Oracle InstantClient installation, not just a missing install.")
+	} else if err != nil {
+		return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "checking OCI_LIB64 path")
+	} else {
+		fmt.Println("OCI_LIB64 environment variable is set and points to a valid directory: existing installation detected.")
+	}
+
+	// Check if TNS_ADMIN environment variable exists
+	// This variable should point to the directory containing the Oracle Net configuration files
+	tnsAdminPath, err := env.GetEnvVar("TNS_ADMIN")
+	if err != nil {
+		if errs.IsErrorType(err, errs.ErrorTypeEnvVarNotFound) {
+			fmt.Println("TNS_ADMIN environment variable not found, existing installation not properly configured.")
+		} else {
+			return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "getting TNS_ADMIN environment variable")
+		}
+	}
+	if tnsAdminPath == "" {
+		fmt.Println("TNS_ADMIN environment variable is set but empty, indicating a misconfigured existing installation.")
+	} 
+	fmt.Printf("TNS_ADMIN environment variable found: %s\n", tnsAdminPath)
+
+	// If TNS_ADMIN exists, check if it points to a valid directory
+	tnsAdminPath = filepath.Clean(tnsAdminPath)
+	if strings.Contains(tnsAdminPath, ociLibPath) && tnsAdminPath != ociLibPath && tnsAdminPath == filepath.Join(ociLibPath, "network", "admin") {
+		fmt.Println("TNS_ADMIN environment variable is set and points to a subdirectory of OCI_LIB64, indicating a valid existing installation.")
+	}	 else if _, err := os.Stat(tnsAdminPath); os.IsNotExist(err) {
+		fmt.Println("TNS_ADMIN environment variable is set, but the path does not point to a valid directory. This indicates a misconfigured Oracle InstantClient installation, not just a missing install.")
+		return false, nil
+	} else if err != nil {
+		return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "checking TNS_ADMIN path")
+	} else {
+		fmt.Println("TNS_ADMIN environment variable is set and points to a valid directory: existing installation detected.")
+	}
+
+	fmt.Printf("\nExisting Oracle InstantClient installation found at %s and is valid and configured correctly.", ociLibPath)
+
+	// Update the config with the installation path
+	if ociLibPath != "" && ociLibPath != "/" && ociLibPath != "\\" && ociLibPath != "." {
+		conf.InstallPath = ociLibPath
+	} else {
+		return false, errs.HandleError(
+			fmt.Errorf("OCI_LIB64 environment variable is set but does not point to a valid installation path: %s", ociLibPath),
+			errs.ErrorTypeInstall,
+			"validating OCI_LIB64 path",
+		)
+	}
+	
+	return true, nil
+}
+
+// UninstallOracleInstantClient removes the Oracle InstantClient installation
+// It cleans up the environment variables and removes the installation directory
+func UninstallOracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
+	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
@@ -49,8 +137,15 @@ func UninstallOracleInstantClient(ctx context.Context, config *config.InstallCon
 		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing TNS_ADMIN")
 	}
 
-	// Remove installation directory
-	if err := os.RemoveAll(config.InstallPath); err != nil {
+	// Remove installation directory with safety checks
+	if conf.InstallPath == "" || conf.InstallPath == "/" || conf.InstallPath == "\\" || conf.InstallPath == "." {
+		return errs.HandleError(
+			fmt.Errorf("refusing to remove invalid or critical system directory: %q", conf.InstallPath),
+			errs.ErrorTypeInstall,
+			"removing installation directory",
+		)
+	}
+	if err := os.RemoveAll(conf.InstallPath); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "removing installation directory")
 	}
 
@@ -58,12 +153,9 @@ func UninstallOracleInstantClient(ctx context.Context, config *config.InstallCon
 	return nil
 }
 
-
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
-func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfig, env *env.EnvVarManager) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+func InstallOracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
+	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
@@ -73,31 +165,31 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 	// INSTALLATION STEPS
 	fmt.Println("Starting Oracle InstantClient installation...")
 	// Set paths for downloads
-	pkgZipPath := filepath.Join(config.DownloadsPath, config.PkgFile)
-	sdkZipPath := filepath.Join(config.DownloadsPath, config.SdkFile)
+	pkgZipPath := filepath.Join(conf.DownloadsPath, conf.PkgFile)
+	sdkZipPath := filepath.Join(conf.DownloadsPath, conf.SdkFile)
 
 	// Download package files
 	fmt.Printf("downloading package: %s...\n", pkgZipPath)
-	if err := downloadOracleInstantClient(ctx, config.BaseURL+config.PkgFile, pkgZipPath); err != nil {
+	if err := downloadOracleInstantClient(ctx, conf.BaseURL+conf.PkgFile, pkgZipPath); err != nil {
 		return err
 	}
 
 	// Download SDK files
 	fmt.Printf("downloading SDK: %s...\n", sdkZipPath)
-	if err := downloadOracleInstantClient(ctx, config.BaseURL+config.SdkFile, sdkZipPath); err != nil {
+	if err := downloadOracleInstantClient(ctx, conf.BaseURL+conf.SdkFile, sdkZipPath); err != nil {
 		return err
 	}
 
 	// Unzip package files
-	fmt.Printf("extracting: %s to %s\n", pkgZipPath, config.InstallPath)
-	pkgDir, err := unzipOracleInstantClient(pkgZipPath, config.InstallPath)
+	fmt.Printf("extracting: %s to %s\n", pkgZipPath, conf.InstallPath)
+	pkgDir, err := unzipOracleInstantClient(pkgZipPath, conf.InstallPath)
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip package")
 	}
 
 	// Unzip SDK files
 	fmt.Printf("extracting: %s\n", sdkZipPath)
-	sdkDir, err := unzipOracleInstantClient(sdkZipPath, config.InstallPath)
+	sdkDir, err := unzipOracleInstantClient(sdkZipPath, conf.InstallPath)
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip SDK")
 	}
@@ -116,7 +208,7 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 	fmt.Println("Configuring Oracle InstantClient...")
 
 	// Set OCI_LIB64 environment variable
-	ociLibPath := filepath.Join(config.InstallPath, pkgDir)
+	ociLibPath := filepath.Join(conf.InstallPath, pkgDir)
 	fmt.Printf("setting OCI_LIB64=%s\n", ociLibPath)
 	if err := env.SetEnvVar("OCI_LIB64", ociLibPath); err != nil {
 		return err
@@ -141,9 +233,7 @@ func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfi
 
 // downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
 func downloadOracleInstantClient(ctx context.Context, urlPath, downloadsPath string) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeDownload, "context cancellation")
