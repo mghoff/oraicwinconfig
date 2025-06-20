@@ -45,20 +45,10 @@ func (e *EnvVarManager) FetchUserDownloadsPath() (string, error) {
 func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
 	out, err := exec.Command(e.powershell, cmd).Output()
-	if err != nil {
-		return "", errs.HandleError(err, errs.ErrorTypeEnvVarNotFound, fmt.Sprintf("getting %s environment variable", name))
+	if err != nil || strings.TrimSuffix(string(out), "\r\n") == "" {
+		return "", errs.HandleError(fmt.Errorf("environment variable %s not found", name), errs.ErrorTypeEnvVarNotFound, fmt.Sprintf("getting %s environment variable", name))
 	}
 	return strings.TrimSuffix(string(out), "\r\n"), nil
-}
-
-// checkEnvVarExists checks if a user environment variable exists
-func (e *EnvVarManager) CheckEnvVarExists(name string) (bool, error) {
-	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
-	out, err := exec.Command(e.powershell, cmd).Output()
-	if err != nil {
-		return false, errs.HandleError(err, errs.ErrorTypeEnvVarNotFound, fmt.Sprintf("checking existence of %s environment variable", name))
-	}
-	return strings.TrimSuffix(string(out), "\r\n") != "", nil
 }
 
 // SetEnvVar sets a user environment variable
