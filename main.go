@@ -12,7 +12,7 @@ import (
 	"github.com/mghoff/oraicwinconfig/internal/env"
 	"github.com/mghoff/oraicwinconfig/internal/errs"
 	"github.com/mghoff/oraicwinconfig/internal/input"
-	"github.com/mghoff/oraicwinconfig/internal/install"
+	"github.com/mghoff/oraicwinconfig/internal/oic"
 	"github.com/mghoff/oraicwinconfig/internal/version"
 )
 
@@ -54,7 +54,7 @@ func main() {
 	}
 
 	// Perform installation
-	if err := install.OracleInstantClient(ctx, conf, env); err != nil {
+	if err := oic.OracleInstantClient(ctx, conf, env); err != nil {
 		var installErr *errs.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {
@@ -94,7 +94,7 @@ func handleInstallLocation(conf *config.InstallConfig) error {
 
 // handleCurrentInstall checks for an existing Oracle InstantClient installation
 func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
-	if ok, err := install.Exists(ctx, conf, env); !ok {
+	if ok, err := oic.Exists(ctx, conf, env); !ok {
 		return nil
 	} else if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "checking for existing Oracle InstantClient installation")
@@ -109,7 +109,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		return nil
 	} else {
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
-		if err := install.Remove(ctx, conf, env); err != nil {
+		if err := oic.Remove(ctx, conf, env); err != nil {
 			return errs.HandleError(err, errs.ErrorTypeInstall, "uninstalling existing Oracle InstantClient")
 		} else {
 			fmt.Println("Existing Oracle InstantClient installation successfully removed.")

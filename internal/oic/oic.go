@@ -1,4 +1,4 @@
-package install
+package oic
 
 import (
 	"archive/zip"
