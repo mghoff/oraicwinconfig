@@ -54,7 +54,7 @@ func main() {
 	}
 
 	// Perform installation
-	if err := oic.OracleInstantClient(ctx, conf, env); err != nil {
+	if err := oic.Install(ctx, conf, env); err != nil {
 		var installErr *errs.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {
@@ -109,7 +109,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		return nil
 	} else {
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
-		if err := oic.Remove(ctx, conf, env); err != nil {
+		if err := oic.Uninstall(ctx, conf, env); err != nil {
 			return errs.HandleError(err, errs.ErrorTypeInstall, "uninstalling existing Oracle InstantClient")
 		} else {
 			fmt.Println("Existing Oracle InstantClient installation successfully removed.")

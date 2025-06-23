@@ -105,7 +105,7 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 
 // UninstallOracleInstantClient removes the Oracle InstantClient installation
 // It cleans up the environment variables and removes the installation directory
-func Remove(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
+func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
@@ -161,7 +161,7 @@ func Remove(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 }
 
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
-func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
+func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
@@ -177,26 +177,26 @@ func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *e
 
 	// Download package files
 	fmt.Printf("downloading package: %s...\n", pkgZipPath)
-	if err := downloadOracleInstantClient(ctx, conf.BaseURL+conf.PkgFile, pkgZipPath); err != nil {
+	if err := downloadZip(ctx, conf.BaseURL+conf.PkgFile, pkgZipPath); err != nil {
 		return err
 	}
 
 	// Download SDK files
 	fmt.Printf("downloading SDK: %s...\n", sdkZipPath)
-	if err := downloadOracleInstantClient(ctx, conf.BaseURL+conf.SdkFile, sdkZipPath); err != nil {
+	if err := downloadZip(ctx, conf.BaseURL+conf.SdkFile, sdkZipPath); err != nil {
 		return err
 	}
 
 	// Unzip package files
 	fmt.Printf("extracting: %s to %s\n", pkgZipPath, conf.InstallPath)
-	pkgDir, err := unzipOracleInstantClient(pkgZipPath, conf.InstallPath)
+	pkgDir, err := unZip(pkgZipPath, conf.InstallPath)
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip package")
 	}
 
 	// Unzip SDK files
 	fmt.Printf("extracting: %s to %s\n", sdkZipPath, filepath.Join(conf.InstallPath, pkgDir, "sdk"))
-	sdkDir, err := unzipOracleInstantClient(sdkZipPath, conf.InstallPath)
+	sdkDir, err := unZip(sdkZipPath, conf.InstallPath)
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip SDK")
 	}
@@ -239,7 +239,7 @@ func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *e
 }
 
 // downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
-func downloadOracleInstantClient(ctx context.Context, urlPath, downloadsPath string) error {
+func downloadZip(ctx context.Context, urlPath, downloadsPath string) error {
 	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
@@ -277,9 +277,9 @@ func downloadOracleInstantClient(ctx context.Context, urlPath, downloadsPath str
 	return nil
 }
 
-// unzipOracleInstantClient extracts the Oracle Instant Client zip file to the specified destination path
+// unZip extracts the Oracle Instant Client zip file to the specified destination path
 // and returns the directory name of the extracted files
-func unzipOracleInstantClient(downloadsPath, installPath string) (string, error) {
+func unZip(downloadsPath, installPath string) (string, error) {
 	// Create base install directory
 	if err := os.MkdirAll(installPath, 0777); err != nil {
 		return "", errs.HandleError(err, errs.ErrorTypeInstall, "creating base installation directory")
