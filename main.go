@@ -74,14 +74,14 @@ func main() {
 
 // handleInstallLocation handles the user interaction for user-defined installation path
 func handleInstallLocation(conf *config.InstallConfig) error {
-	if ok := input.ReqUserConfirmation("\nAccept the following install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
-		if change := input.ReqUserConfirmation("Are you sure you wish to change the default install location?\nSelect"); change {
-			newPath := input.ReqUserInstallPath("Enter desired install path...\n")
+	if ok := input.Confirmation("\nAccept the following install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
+		if change := input.Confirmation("Are you sure you wish to change the default install location?\nSelect"); change {
+			newPath := input.InstallPath("Enter desired install path...\n")
 			conf.InstallPath = newPath
 			fmt.Printf("install path set to: %s\n", conf.InstallPath)
 		}
 
-		if cont := input.ReqUserConfirmation("Continue with install?"); !cont {
+		if cont := input.Confirmation("Continue with install?"); !cont {
 			return errs.HandleError(
 				fmt.Errorf("installation aborted by user"),
 				errs.ErrorTypeValidation,
@@ -104,7 +104,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 	conf.InstallPath = filepath.Dir(conf.InstallPath)
 
 	const promptAsk = "\nDo you wish to overwrite this current installation?"
-	if !input.ReqUserConfirmation(promptAsk+"\nSelect") {
+	if !input.Confirmation(promptAsk+"\nSelect") {
 		fmt.Println("Existing installation to be left in place. Resetting default install path to base directory of existing.")
 		fmt.Printf("New install location set to base directory of existing: %s\n", conf.InstallPath)
 		return nil
