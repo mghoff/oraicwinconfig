@@ -35,7 +35,7 @@ func main() {
 	}
 	conf.DownloadsPath = downloadsPath
 
-	fmt.Printf("files will be downloaded from '%s' to '%s':\n", conf.BaseURL, conf.DownloadsPath)
+	fmt.Printf("The following files will be downloaded from '%s' to '%s':\n", conf.BaseURL, conf.DownloadsPath)
 	fmt.Printf("- %s\n- %s\n\n", conf.PkgFile, conf.SdkFile)
 
 	// Handle existing installation
@@ -102,10 +102,9 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 	
 	fmt.Printf("\nThe path of the new installation will be set to the base directory of the existing installation; e.g. %s\n", filepath.Dir(conf.InstallPath))
 
-	if !input.Confirmation("\nDo you wish to overwrite this current installation?\nSelect") {
-		fmt.Println("Existing installation to be left in place. Setting install path to base directory of existing.")
+	if !input.Confirmation("\nDo you wish to overwrite the existing installation?\nSelect") {
+		fmt.Printf("\nExisting installation will be left in place.\nSetting install path to base directory of existing installation: %s\n", filepath.Dir(conf.InstallPath))
 		conf.InstallPath = filepath.Dir(conf.InstallPath)
-		fmt.Printf("New install location set to: %s\n", conf.InstallPath)
 		return nil
 	} else {
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
