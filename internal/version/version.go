@@ -9,7 +9,7 @@ var (
 	GoVersion = "unknown"
 )
 
-func FetchVersionInfo() string {
+func Info() string {
 	return fmt.Sprintf(
 		"Version: %s\nBuild Time: %s\nGit Commit: %s\nGo Version: %s\n",
 		Version, BuildTime, GitCommit, GoVersion)

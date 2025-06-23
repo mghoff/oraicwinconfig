@@ -18,7 +18,7 @@ import (
 
 func main() {
 	// Display  version information
-	fmt.Println(version.FetchVersionInfo())
+	fmt.Println(version.Info())
 	
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
