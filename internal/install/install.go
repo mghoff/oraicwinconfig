@@ -105,7 +105,7 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 
 // UninstallOracleInstantClient removes the Oracle InstantClient installation
 // It cleans up the environment variables and removes the installation directory
-func UninstallOracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
+func Remove(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
@@ -154,7 +154,7 @@ func UninstallOracleInstantClient(ctx context.Context, conf *config.InstallConfi
 }
 
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
-func InstallOracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
+func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = ensureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {

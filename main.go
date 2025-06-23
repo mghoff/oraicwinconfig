@@ -54,7 +54,7 @@ func main() {
 	}
 
 	// Perform installation
-	if err := install.InstallOracleInstantClient(ctx, conf, env); err != nil {
+	if err := install.OracleInstantClient(ctx, conf, env); err != nil {
 		var installErr *errs.InstallError
 		if errors.As(err, &installErr) {
 			switch installErr.Type {
@@ -109,8 +109,8 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		fmt.Printf("New install location set to base directory of existing: %s\n", conf.InstallPath)
 		return nil
 	} else {
-		// Uninstall existing Oracle InstantClient at base install path
-		if err := install.UninstallOracleInstantClient(ctx, conf, env); err != nil {
+		// Remove existing Oracle InstantClient at base install path
+		if err := install.Remove(ctx, conf, env); err != nil {
 			return errs.HandleError(err, errs.ErrorTypeInstall, "uninstalling existing Oracle InstantClient")
 		} else {
 			fmt.Println("Existing Oracle InstantClient installation removed successfully.")
