@@ -74,9 +74,9 @@ func main() {
 
 // handleInstallLocation handles the user interaction for user-defined installation path
 func handleInstallLocation(conf *config.InstallConfig) error {
-	if ok := input.Confirmation("\nAccept the following install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
-		if change := input.Confirmation("Are you sure you wish to change the default install location?\nSelect"); change {
-			newPath := input.InstallPath("Enter desired install path...\n")
+	if ok := input.Confirmation("\nAccept the suggested install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
+		if change := input.Confirmation("Are you sure you wish to change the suggested install location?\nSelect"); change {
+			newPath := input.InstallPath("Enter desired install path below... Note: this path must be an existing valid directory\n")
 			conf.InstallPath = newPath
 			fmt.Printf("install path set to: %s\n", conf.InstallPath)
 		}
@@ -100,20 +100,20 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		return errs.HandleError(err, errs.ErrorTypeInstall, "checking for existing Oracle InstantClient installation")
 	}
 	
-	fmt.Printf("\nThe path of the new installation will be set to the base directory of the existing installation: %s\n", filepath.Dir(conf.InstallPath)) 
-	conf.InstallPath = filepath.Dir(conf.InstallPath)
+	fmt.Printf("\nThe path of the new installation will be set to the base directory of the existing installation; e.g. %s\n", filepath.Dir(conf.InstallPath))
 
-	const promptAsk = "\nDo you wish to overwrite this current installation?"
-	if !input.Confirmation(promptAsk+"\nSelect") {
-		fmt.Println("Existing installation to be left in place. Resetting default install path to base directory of existing.")
-		fmt.Printf("New install location set to base directory of existing: %s\n", conf.InstallPath)
+	if !input.Confirmation("\nDo you wish to overwrite this current installation?\nSelect") {
+		fmt.Println("Existing installation to be left in place. Setting install path to base directory of existing.")
+		conf.InstallPath = filepath.Dir(conf.InstallPath)
+		fmt.Printf("New install location set to: %s\n", conf.InstallPath)
 		return nil
 	} else {
-		// Remove existing Oracle InstantClient at base install path
+		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
 		if err := install.Remove(ctx, conf, env); err != nil {
 			return errs.HandleError(err, errs.ErrorTypeInstall, "uninstalling existing Oracle InstantClient")
 		} else {
-			fmt.Println("Existing Oracle InstantClient installation removed successfully.")
+			fmt.Println("Existing Oracle InstantClient installation successfully removed.")
+			fmt.Printf("Installation path reset to: %s\n", conf.InstallPath)
 		}
 		return nil
 	}

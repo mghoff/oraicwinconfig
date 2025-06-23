@@ -112,8 +112,6 @@ func Remove(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
 	}
 
-	fmt.Println("Uninstalling Oracle InstantClient...")
-
 	// Remove OCI_LIB64 from PATH
 	envVar, err := env.GetEnvVar("OCI_LIB64")
 	if err != nil {
@@ -149,7 +147,16 @@ func Remove(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 		return errs.HandleError(err, errs.ErrorTypeInstall, "removing installation directory")
 	}
 
-	fmt.Println("Oracle InstantClient uninstalled successfully!")
+	// Reset the installation path in the config
+	conf.InstallPath = filepath.Dir(conf.InstallPath) // Reset install path to base directory
+	if conf.InstallPath == "" || conf.InstallPath == "/" || conf.InstallPath == "\\" || conf.InstallPath == "." {
+		return errs.HandleError(
+			fmt.Errorf("installation path reset to an invalid or critical system directory: %q", conf.InstallPath),
+			errs.ErrorTypeInstall,
+			"resetting installation path",
+		)
+	}
+
 	return nil
 }
 
@@ -163,7 +170,7 @@ func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *e
 
 
 	// INSTALLATION STEPS
-	fmt.Println("Starting Oracle InstantClient installation...")
+	fmt.Println("\nStarting Oracle InstantClient installation...")
 	// Set paths for downloads
 	pkgZipPath := filepath.Join(conf.DownloadsPath, conf.PkgFile)
 	sdkZipPath := filepath.Join(conf.DownloadsPath, conf.SdkFile)
@@ -188,7 +195,7 @@ func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *e
 	}
 
 	// Unzip SDK files
-	fmt.Printf("extracting: %s\n", sdkZipPath)
+	fmt.Printf("extracting: %s to %s\n", sdkZipPath, filepath.Join(conf.InstallPath, pkgDir, "sdk"))
 	sdkDir, err := unzipOracleInstantClient(sdkZipPath, conf.InstallPath)
 	if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip SDK")
@@ -205,7 +212,7 @@ func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *e
 	fmt.Println("package and SDK versions match, continuing...")
 
 	// CONFIGURATION STEPS
-	fmt.Println("Configuring Oracle InstantClient...")
+	fmt.Println("\nConfiguring Oracle InstantClient...")
 
 	// Set OCI_LIB64 environment variable
 	ociLibPath := filepath.Join(conf.InstallPath, pkgDir)
@@ -227,7 +234,7 @@ func OracleInstantClient(ctx context.Context, conf *config.InstallConfig, env *e
 		return err
 	}
 
-	fmt.Println("Oracle InstantClient installation completed successfully!")
+	fmt.Println("\nOracle InstantClient installation and configuration completed successfully!")
 	return nil
 }
 
