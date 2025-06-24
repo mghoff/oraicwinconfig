@@ -15,8 +15,8 @@ const (
 
 // InstallConfig holds all installation configurations
 type InstallConfig struct {
-	InstallPath   string
 	DownloadsPath string
+	InstallPath   string
 	PkgFile       string
 	SdkFile       string
 	BaseURL       string
