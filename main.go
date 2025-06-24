@@ -99,6 +99,7 @@ func handleInstallLocation(conf *config.InstallConfig) error {
 // handleCurrentInstall checks for an existing Oracle InstantClient installation
 func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	if ok, err := oic.Exists(ctx, conf, env); !ok {
+		fmt.Println("\nNo existing installation found. Proceeding with new installation...")
 		return nil
 	} else if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "checking for existing Oracle InstantClient installation")
@@ -111,7 +112,6 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); err != nil {
 			return errs.HandleError(err, errs.ErrorTypeValidation, "setting install path to existing installation base directory")
 		}
-		fmt.Printf("Installation path set to: %s\n", conf.InstallPath)
 		return nil
 	} else {
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")

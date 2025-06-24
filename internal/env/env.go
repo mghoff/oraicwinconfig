@@ -48,7 +48,7 @@ func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
 	out, err := exec.Command(e.powershell, cmd).Output()
 	if err != nil {
-		return "", errs.HandleError(err, errs.ErrorTypeEnvVarNotFound,  fmt.Sprintf("getting %s environment variable", name))
+		return "", errs.HandleError(err, errs.ErrorTypeEnvVarNotFound, fmt.Sprintf("getting %s environment variable", name))
 	}
 	path := strings.TrimSpace(string(out)) // Trim whitespace including newlines
 	if path == ""  || path == "." || path == ".." || path == "/" || path == "\\" {
@@ -58,6 +58,29 @@ func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 			fmt.Sprintf("getting %s environment variable", name))
 	}
 	
+	return path, nil
+}
+
+// ValidateEnvVar checks if an environment variable is set and points to a valid directory
+func (e *EnvVarManager) ValidateEnvVar(name string) (string, error) {
+	path, err := e.GetEnvVar(name)
+	if errs.IsErrorType(err, errs.ErrorTypeEnvVarNotFound) {
+		return "", err
+	}
+	
+	// If exists, check if it points to a valid directory
+	// This is the directory where the Oracle Instant Client files are expected to be located
+	path = filepath.Clean(path)
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return "", errs.HandleError(fmt.Errorf("environment variable %s points to a non-existent directory: %s", name, path),
+			errs.ErrorTypeEnvironment,
+			fmt.Sprintf("checking %s path", name))
+	}
+	if err != nil {
+		return "", errs.HandleError(err, errs.ErrorTypeEnvironment, fmt.Sprintf("checking %s path", name))
+	}
+
+	fmt.Printf("%s environment variable found: %s\n", name, path)
 	return path, nil
 }
 

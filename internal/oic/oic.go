@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"context"
 	"strings"
+	"errors"
 
 	"github.com/mghoff/oraicwinconfig/internal/config"
 	"github.com/mghoff/oraicwinconfig/internal/env"
@@ -37,81 +38,45 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 	// Check if OCI_LIB64 environment variable exists
 	// This variable should point to the directory where the Oracle Instant Client files are located
 	// If it exists and points to a valid directory, it indicates an existing installation
-	ociLibPath, err := env.GetEnvVar("OCI_LIB64")
+	ociLibPath, err := env.ValidateEnvVar("OCI_LIB64")
 	if err != nil {
-		if errs.IsErrorType(err, errs.ErrorTypeEnvVarNotFound) {
-			fmt.Println("No existing installation detected. Coninuing with fresh installation...")
-			return false, nil
-		}
-		return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "getting OCI_LIB64 environment variable")
+		fmt.Println("OCI_LIB64 environment variable not found or invalid, indicating no existing installation.")
+		return false, err
 	}
-	if ociLibPath == "" {
-		fmt.Println("OCI_LIB64 environment variable is set but empty, indicating a misconfigured existing installation.")
-		return false, nil
-	}
-	fmt.Printf("OCI_LIB64 environment variable found: %s\n", ociLibPath)
+	fmt.Println("OCI_LIB64 environment variable is set and is valid, indicating an existing installation.")
 
-	// If OCI_LIB64 exists, check if it points to a valid directory
-	// This is the directory where the Oracle Instant Client files are expected to be located
-	ociLibPath = filepath.Clean(ociLibPath)
-	if _, err := os.Stat(ociLibPath); os.IsNotExist(err) {
-		fmt.Println("OCI_LIB64 environment variable is set, but the path does not point to a valid directory. This indicates a misconfigured Oracle InstantClient installation, not just a missing install.")
-		return false, nil
-	} else if err != nil {
-		return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "checking OCI_LIB64 path")
-	} else {
-		fmt.Println("OCI_LIB64 environment variable is set and points to a valid directory: existing installation detected.")
+	// Update the config with the existing installation path
+	if err := conf.SetInstallPath(ociLibPath); errs.IsErrorType(err, errs.ErrorTypeValidation) {
+		return false, err
 	}
 
 	// Check if TNS_ADMIN environment variable exists
 	// This variable should point to the directory containing the Oracle Net configuration files
-	tnsAdminPath, err := env.GetEnvVar("TNS_ADMIN")
+	// If it exists and points to a valid subdirectory of OCI_LIB64, it indicates a valid existing installation
+	// Specifically, it should point to the network/admin directory within OCI_LIB64
+	tnsAdminPath, err := env.ValidateEnvVar("TNS_ADMIN")
 	if err != nil {
-		if errs.IsErrorType(err, errs.ErrorTypeEnvVarNotFound) {
-			fmt.Println("TNS_ADMIN environment variable not found, existing installation not properly configured.")
-		} else {
-			return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "getting TNS_ADMIN environment variable")
-		}
+		fmt.Println("TNS_ADMIN environment variable not found or invalid, indicating a misconfigured existing installation.")
+		return true, nil
 	}
-	if tnsAdminPath == "" {
-		fmt.Println("TNS_ADMIN environment variable is set but empty, indicating a misconfigured existing installation.")
-	} 
-	fmt.Printf("TNS_ADMIN environment variable found: %s\n", tnsAdminPath)
-
-	// If TNS_ADMIN exists, check if it points to a valid directory
-	// This directory should be a subdirectory of OCI_LIB64, specifically network/admin
-	// If it points to the network/admin directory, it indicates a valid existing installation
-	tnsAdminPath = filepath.Clean(tnsAdminPath)
 	if strings.Contains(tnsAdminPath, ociLibPath) && tnsAdminPath != ociLibPath && tnsAdminPath == filepath.Join(ociLibPath, "network", "admin") {
 		fmt.Println("TNS_ADMIN environment variable is set and points to a subdirectory of OCI_LIB64, indicating a valid existing installation.")
-	}	else if _, err := os.Stat(tnsAdminPath); os.IsNotExist(err) {
-		fmt.Println("TNS_ADMIN environment variable is set, but the path does not point to a valid directory. This indicates a misconfigured Oracle InstantClient installation, not just a missing install.")
-		return false, nil
-	} else if err != nil {
-		return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "checking TNS_ADMIN path")
-	} else {
-		fmt.Println("TNS_ADMIN environment variable is set and points to a valid directory: existing installation detected.")
+	}	else {
+		return true, nil
 	}
 
 	// Check if the TNS_ADMIN directory contains tnsnames.ora file
 	// This file is essential for Oracle Net configuration and should exist in the TNS_ADMIN directory
-	if tnsAdminPath == filepath.Join(ociLibPath, "network", "admin") {
-		if _, err := os.Stat(filepath.Join(tnsAdminPath, "tnsnames.ora")); os.IsNotExist(err) {
-			fmt.Println("TNS_ADMIN directory exists but does not contain tnsnames.ora, indicating a misconfigured existing installation.")
-			return false, nil
-		} else if err != nil {
-			return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "checking tnsnames.ora file")
-		} else {
-			fmt.Println("TNS_ADMIN directory contains tnsnames.ora, indicating a valid existing installation.")
-		}
+	if _, err := os.Stat(filepath.Join(tnsAdminPath, "tnsnames.ora")); errors.Is(err, os.ErrNotExist) {
+		fmt.Println("TNS_ADMIN directory does not contain a tnsnames.ora file, indicating a misconfigured existing installation.")
+		return true, nil
+	} else if err != nil {
+		return true, nil
+	} else {
+		fmt.Println("TNS_ADMIN directory contains a tnsnames.ora file, indicating a valid existing installation.")
 	}
 
 	fmt.Printf("\nExisting Oracle InstantClient installation found at %s and is valid and configured correctly.", ociLibPath)
-
-	// Update the config with the installation path
-	if err := conf.SetInstallPath(ociLibPath); errs.IsErrorType(err, errs.ErrorTypeValidation) {
-		return false, errs.HandleError(err, errs.ErrorTypeInstall, "setting installation path in config")
-	}
 	
 	return true, nil
 }
