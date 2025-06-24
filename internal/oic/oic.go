@@ -109,14 +109,8 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 	fmt.Printf("\nExisting Oracle InstantClient installation found at %s and is valid and configured correctly.", ociLibPath)
 
 	// Update the config with the installation path
-	if ociLibPath != "" && ociLibPath != "/" && ociLibPath != "\\" && ociLibPath != "." {
-		conf.SetInstallPath(ociLibPath)
-	} else {
-		return false, errs.HandleError(
-			fmt.Errorf("OCI_LIB64 environment variable is set but does not point to a valid installation path: %s", ociLibPath),
-			errs.ErrorTypeInstall,
-			"validating OCI_LIB64 path",
-		)
+	if err := conf.SetInstallPath(ociLibPath); errs.IsErrorType(err, errs.ErrorTypeValidation) {
+		return false, errs.HandleError(err, errs.ErrorTypeInstall, "setting installation path in config")
 	}
 	
 	return true, nil
@@ -155,25 +149,13 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 	}
 
 	// Remove installation directory with safety checks
-	if conf.InstallPath == "" || conf.InstallPath == "/" || conf.InstallPath == "\\" || conf.InstallPath == "." {
-		return errs.HandleError(
-			fmt.Errorf("refusing to remove invalid or critical system directory: %q", conf.InstallPath),
-			errs.ErrorTypeInstall,
-			"removing installation directory",
-		)
-	}
 	if err := os.RemoveAll(conf.InstallPath); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "removing installation directory")
 	}
 
-	// Reset the installation path in the config
-	conf.SetInstallPath(filepath.Dir(conf.InstallPath))
-	if conf.InstallPath == "" || conf.InstallPath == "/" || conf.InstallPath == "\\" || conf.InstallPath == "." {
-		return errs.HandleError(
-			fmt.Errorf("installation path reset to an invalid or critical system directory: %q", conf.InstallPath),
-			errs.ErrorTypeInstall,
-			"resetting installation path",
-		)
+	// Reset the installation path in the config to the base directory of existing installation
+	if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); errs.IsErrorType(err, errs.ErrorTypeValidation) {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "resetting installation path in config")
 	}
 
 	return nil
@@ -182,7 +164,6 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 // InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
 func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = ensureContext(ctx)
-	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
 	}

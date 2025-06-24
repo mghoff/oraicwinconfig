@@ -33,7 +33,9 @@ func main() {
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}
-	conf.SetDownloadsPath(downloadsPath)
+	if err := conf.SetDownloadsPath(downloadsPath); errs.IsErrorType(err, errs.ErrorTypeValidation) {
+		log.Fatal("error setting Downloads path: ", err)
+	}
 
 	fmt.Printf("The following files will be downloaded from '%s' to '%s':\n", conf.BaseURL, conf.DownloadsPath)
 	fmt.Printf("- %s\n- %s\n\n", conf.PkgFile, conf.SdkFile)
@@ -77,7 +79,9 @@ func handleInstallLocation(conf *config.InstallConfig) error {
 	if ok := input.Confirmation("\nAccept the suggested install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
 		if change := input.Confirmation("Are you sure you wish to change the suggested install location?\nSelect"); change {
 			newPath := input.InstallPath("Enter desired install path below... Note: this path must be an existing valid directory\n")
-			conf.SetInstallPath(newPath)
+			if err := conf.SetInstallPath(newPath); errs.IsErrorType(err, errs.ErrorTypeValidation) {
+				return errs.HandleError(err, errs.ErrorTypeValidation, "setting user-defined install path")
+			}
 			fmt.Printf("install path set to: %s\n", conf.InstallPath)
 		}
 
@@ -104,7 +108,10 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 
 	if !input.Confirmation("\nDo you wish to overwrite the existing installation?\nSelect") {
 		fmt.Printf("\nExisting installation will be left in place.\nSetting install path to base directory of existing installation: %s\n", filepath.Dir(conf.InstallPath))
-		conf.SetInstallPath(filepath.Dir(conf.InstallPath))
+		if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); err != nil {
+			return errs.HandleError(err, errs.ErrorTypeValidation, "setting install path to existing installation base directory")
+		}
+		fmt.Printf("Installation path set to: %s\n", conf.InstallPath)
 		return nil
 	} else {
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")

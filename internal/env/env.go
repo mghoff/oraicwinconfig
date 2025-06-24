@@ -51,7 +51,7 @@ func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 		return "", errs.HandleError(err, errs.ErrorTypeEnvVarNotFound,  fmt.Sprintf("getting %s environment variable", name))
 	}
 	path := strings.TrimSpace(string(out)) // Trim whitespace including newlines
-	if path == "" || path == "\\" || path == "/" || path == "." || path == ".." {
+	if path == ""  || path == "." || path == ".." || path == "/" || path == "\\" {
 		return "", errs.HandleError(
 			fmt.Errorf("environment variable %s not found", name),
 			errs.ErrorTypeEnvVarNotFound,
