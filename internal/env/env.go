@@ -1,10 +1,11 @@
 package env
 
 import (
-	"path/filepath"
 	"fmt"
+	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/mghoff/oraicwinconfig/internal/errs"
@@ -26,18 +27,19 @@ func New() *EnvVarManager {
 // and checks if the directory exists
 func (e *EnvVarManager) FetchUserDownloadsPath() (string, error) {
 	cmd := "$env:USERPROFILE"
-	usrProfilePath, err := exec.Command(e.powershell, cmd).Output()
+	out, err := exec.Command(e.powershell, cmd).Output()
 	if err != nil {
 		return "", errs.HandleError(err, errs.ErrorTypeUserPath, "getting user profile directory")
 	}
-
-	usrDownloadsPath := filepath.Join(strings.TrimSuffix(string(usrProfilePath), "\r\n"), "Downloads")
-	if _, err := os.Stat(usrDownloadsPath); os.IsNotExist(err) {
+	usrProfilePath := strings.TrimSpace(string(out)) // Convert to string and trim whitespace
+	
+	usrDownloadsPath := filepath.Join(usrProfilePath, "Downloads")
+	if _, err := os.Stat(usrDownloadsPath); errors.Is(err, os.ErrNotExist) {
 		return "", errs.HandleError(fmt.Errorf("directory does not exist: %s", usrDownloadsPath), errs.ErrorTypeUserPath, "checking user profile directory")
 	} else if err != nil {
 		return "", errs.HandleError(err, errs.ErrorTypeUserPath, "checking user profile directory")
 	}
-
+	
 	return usrDownloadsPath, nil
 }
 
@@ -45,14 +47,18 @@ func (e *EnvVarManager) FetchUserDownloadsPath() (string, error) {
 func (e *EnvVarManager) GetEnvVar(name string) (string, error) {
 	cmd := fmt.Sprintf("[System.Environment]::GetEnvironmentVariable('%s', 'User')", name)
 	out, err := exec.Command(e.powershell, cmd).Output()
-	if err != nil || strings.TrimSuffix(string(out), "\r\n") == "" {
+	if err != nil {
+		return "", errs.HandleError(err, errs.ErrorTypeEnvVarNotFound,  fmt.Sprintf("getting %s environment variable", name))
+	}
+	path := strings.TrimSpace(string(out)) // Trim whitespace including newlines
+	if path == "" || path == "\\" || path == "/" || path == "." || path == ".." {
 		return "", errs.HandleError(
 			fmt.Errorf("environment variable %s not found", name),
-			errs.ErrorTypeEnvVarNotFound, 
-			fmt.Sprintf("getting %s environment variable", name),
-		)
+			errs.ErrorTypeEnvVarNotFound,
+			fmt.Sprintf("getting %s environment variable", name))
 	}
-	return strings.TrimSuffix(string(out), "\r\n"), nil
+	
+	return path, nil
 }
 
 // SetEnvVar sets a user environment variable
