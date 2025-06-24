@@ -33,6 +33,16 @@ func New() *InstallConfig {
 	}
 }
 
+// SetDownloadsPath sets the path where the downloaded files will be stored
+func (c *InstallConfig) SetDownloadsPath(path string) {
+	c.DownloadsPath = path
+}
+
+// SetInstallPath sets the path where the Oracle Instant Client will be installed
+func (c *InstallConfig) SetInstallPath(path string) {
+	c.InstallPath = path
+}
+
 // Validate checks if the configuration is valid
 // and returns an error if any required fields are missing or invalid.
 func (c *InstallConfig) Validate() error {

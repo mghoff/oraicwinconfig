@@ -56,6 +56,7 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 	ociLibPath = filepath.Clean(ociLibPath)
 	if _, err := os.Stat(ociLibPath); os.IsNotExist(err) {
 		fmt.Println("OCI_LIB64 environment variable is set, but the path does not point to a valid directory. This indicates a misconfigured Oracle InstantClient installation, not just a missing install.")
+		return false, nil
 	} else if err != nil {
 		return false, errs.HandleError(err, errs.ErrorTypeEnvironment, "checking OCI_LIB64 path")
 	} else {
@@ -83,7 +84,7 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 	tnsAdminPath = filepath.Clean(tnsAdminPath)
 	if strings.Contains(tnsAdminPath, ociLibPath) && tnsAdminPath != ociLibPath && tnsAdminPath == filepath.Join(ociLibPath, "network", "admin") {
 		fmt.Println("TNS_ADMIN environment variable is set and points to a subdirectory of OCI_LIB64, indicating a valid existing installation.")
-	}	 else if _, err := os.Stat(tnsAdminPath); os.IsNotExist(err) {
+	}	else if _, err := os.Stat(tnsAdminPath); os.IsNotExist(err) {
 		fmt.Println("TNS_ADMIN environment variable is set, but the path does not point to a valid directory. This indicates a misconfigured Oracle InstantClient installation, not just a missing install.")
 		return false, nil
 	} else if err != nil {
@@ -109,7 +110,7 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 
 	// Update the config with the installation path
 	if ociLibPath != "" && ociLibPath != "/" && ociLibPath != "\\" && ociLibPath != "." {
-		conf.InstallPath = ociLibPath
+		conf.SetInstallPath(ociLibPath)
 	} else {
 		return false, errs.HandleError(
 			fmt.Errorf("OCI_LIB64 environment variable is set but does not point to a valid installation path: %s", ociLibPath),
@@ -166,7 +167,7 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 	}
 
 	// Reset the installation path in the config
-	conf.InstallPath = filepath.Dir(conf.InstallPath) // Reset install path to base directory
+	conf.SetInstallPath(filepath.Dir(conf.InstallPath))
 	if conf.InstallPath == "" || conf.InstallPath == "/" || conf.InstallPath == "\\" || conf.InstallPath == "." {
 		return errs.HandleError(
 			fmt.Errorf("installation path reset to an invalid or critical system directory: %q", conf.InstallPath),
