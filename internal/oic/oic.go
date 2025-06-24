@@ -32,7 +32,6 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 	if err := ctx.Err(); err != nil {
 		return false, errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
 	}
-
 	fmt.Println("Checking for existing Oracle InstantClient installation...")
 
 	// Check if OCI_LIB64 environment variable exists
@@ -53,31 +52,24 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 	// Check if TNS_ADMIN environment variable exists
 	// This variable should point to the directory containing the Oracle Net configuration files
 	// If it exists and points to a valid subdirectory of OCI_LIB64, it indicates a valid existing installation
-	// Specifically, it should point to the network/admin directory within OCI_LIB64
 	tnsAdminPath, err := env.ValidateEnvVar("TNS_ADMIN")
-	if err != nil {
+	if err != nil || !strings.Contains(tnsAdminPath, ociLibPath) || tnsAdminPath == ociLibPath || tnsAdminPath != filepath.Join(ociLibPath, "network", "admin"){
 		fmt.Println("TNS_ADMIN environment variable not found or invalid, indicating a misconfigured existing installation.")
+		fmt.Println("\nAn existing Oracle InstantClient installation was found, but appears misconfigured.")
 		return true, nil
 	}
-	if strings.Contains(tnsAdminPath, ociLibPath) && tnsAdminPath != ociLibPath && tnsAdminPath == filepath.Join(ociLibPath, "network", "admin") {
-		fmt.Println("TNS_ADMIN environment variable is set and points to a subdirectory of OCI_LIB64, indicating a valid existing installation.")
-	}	else {
-		return true, nil
-	}
+	fmt.Println("TNS_ADMIN environment variable is set and points to a subdirectory of OCI_LIB64, indicating a valid existing installation.")
 
 	// Check if the TNS_ADMIN directory contains tnsnames.ora file
 	// This file is essential for Oracle Net configuration and should exist in the TNS_ADMIN directory
-	if _, err := os.Stat(filepath.Join(tnsAdminPath, "tnsnames.ora")); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(tnsAdminPath, "tnsnames.ora")); errors.Is(err, os.ErrNotExist) || err != nil {
 		fmt.Println("TNS_ADMIN directory does not contain a tnsnames.ora file, indicating a misconfigured existing installation.")
+		fmt.Println("\nAn existing Oracle InstantClient installation was found, but appears misconfigured.")
 		return true, nil
-	} else if err != nil {
-		return true, nil
-	} else {
-		fmt.Println("TNS_ADMIN directory contains a tnsnames.ora file, indicating a valid existing installation.")
 	}
-
-	fmt.Printf("\nExisting Oracle InstantClient installation found at %s and is valid and configured correctly.", ociLibPath)
+	fmt.Println("TNS_ADMIN directory contains a tnsnames.ora file, indicating a valid existing installation.")
 	
+	fmt.Printf("\nExisting Oracle InstantClient installation found at %s and is valid and configured correctly.", ociLibPath)
 	return true, nil
 }
 
