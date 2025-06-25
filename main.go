@@ -76,6 +76,10 @@ func main() {
 
 // handleInstallLocation handles the user interaction for user-defined installation path
 func handleInstallLocation(conf *config.InstallConfig) error {
+	if conf.Overwrite {
+		fmt.Printf("\nInstallation path set to base directory of existing installation: %s\n", conf.InstallPath)
+		return nil
+	}
 	if ok := input.Confirmation("\nAccept the suggested install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
 		if change := input.Confirmation("Are you sure you wish to change the suggested install location?\nSelect"); change {
 			newPath := input.InstallPath("Enter desired install path below... Note: this path must be an existing valid directory\n")
@@ -114,6 +118,9 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		return nil
 	} else {
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
+		if err := conf.SetOverwrite(true); err != nil {
+			return errs.HandleError(err, errs.ErrorTypeValidation, "setting overwrite flag for existing installation")
+		}
 		if err := oic.Uninstall(ctx, conf, env); err != nil {
 			return errs.HandleError(err, errs.ErrorTypeInstall, "uninstalling existing Oracle InstantClient")
 		} else {

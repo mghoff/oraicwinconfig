@@ -15,11 +15,13 @@ const (
 
 // InstallConfig holds all installation configurations
 type InstallConfig struct {
-	DownloadsPath string
-	InstallPath   string
-	PkgFile       string
-	SdkFile       string
-	BaseURL       string
+	DownloadsPath string // Path where downloaded files will be stored
+	InstallPath   string // Path where Oracle Instant Client will be installed
+	PkgFile       string // Name of the package file to be downloaded
+	SdkFile       string // Name of the SDK file to be downloaded
+	BaseURL       string // Base URL for downloading the files
+	Extant				bool   // Indicates if an existing installation was found
+	Overwrite		 	bool   // Indicates if the existing installation should be overwritten
 }
 
 // NewDefaultConfig creates a new configuration with default values
@@ -30,6 +32,8 @@ func New() *InstallConfig {
 		PkgFile:     pkgFileName,
 		SdkFile:     sdkFileName,
 		BaseURL:     baseDownloadURL,
+		Extant:      false,
+		Overwrite:   false,
 	}
 }
 
@@ -62,6 +66,30 @@ func (c *InstallConfig) SetInstallPath(path string) error {
 			"setting install path")
 	}
 	c.InstallPath = path
+	return nil
+}
+
+// SetExtant sets the extant flag indicating if an existing installation was found
+func (c *InstallConfig) SetExtant(extant bool) error{
+	if extant != true && extant != false {
+		return errs.HandleError(
+			fmt.Errorf("extant must be a boolean value"),
+			errs.ErrorTypeValidation,
+			"setting extant value")
+	}
+	c.Extant = extant
+	return nil
+}
+
+// SetOverwrite sets the overwrite flag indicating if the existing installation should be overwritten
+func (c *InstallConfig) SetOverwrite(overwrite bool) error {
+	if overwrite != true && overwrite != false {
+		return errs.HandleError(
+			fmt.Errorf("overwrite must be a boolean value"),
+			errs.ErrorTypeValidation,
+			"setting overwrite value")
+	}
+	c.Overwrite = overwrite
 	return nil
 }
 

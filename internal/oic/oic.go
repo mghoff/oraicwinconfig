@@ -68,6 +68,11 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 		return true, nil
 	}
 	fmt.Println("TNS_ADMIN directory contains a tnsnames.ora file, indicating a valid existing installation.")
+
+	// If all checks passed, we have a valid existing installation
+	if err := conf.SetExtant(true); err != nil {
+		return false, err
+	}
 	
 	fmt.Printf("\nExisting Oracle InstantClient installation found at %s and is valid and configured correctly.", ociLibPath)
 	return true, nil
@@ -102,6 +107,18 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 	// Remove TNS_ADMIN environment variable
 	if err := env.RemoveEnvVar("TNS_ADMIN"); err != nil {
 		return err
+	}
+
+	// Save tnsnames.ora file to user Downloads, if it exists
+	// This is useful for restoring the configuration later during reinstallation
+	if conf.Extant && conf.Overwrite {
+		fmt.Printf("saving tnsnames.ora file to %s...\n", conf.DownloadsPath)
+		moveTNSNamesFile(
+			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
+			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
+		)
+	} else if conf.Extant && !conf.Overwrite {
+			fmt.Println("Skipping saving tnsnames.ora file as overwrite is not set.")
 	}
 
 	// Remove installation directory with safety checks
@@ -188,6 +205,19 @@ func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMan
 	fmt.Printf("setting TNS_ADMIN=%s\n", tnsAdminPath)
 	if err := env.SetEnvVar("TNS_ADMIN", tnsAdminPath); err != nil {
 		return err
+	}
+
+	// Move tnsnames.ora file to TNS_ADMIN directory
+	if conf.Extant && conf.Overwrite {
+		fmt.Printf("moving tnsnames.ora from %s to %s\n", filepath.Join(conf.DownloadsPath, "tnsnames.ora"), tnsAdminPath)
+		if err := moveTNSNamesFile(
+			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
+			filepath.Join(tnsAdminPath, "tnsnames.ora"),
+		); err != nil {
+			return err
+		}
+	} else if conf.Extant && !conf.Overwrite {
+		fmt.Println("Skipping moving tnsnames.ora file as overwrite is not set.")
 	}
 
 	fmt.Println("\nOracle InstantClient installation and configuration completed successfully!")
@@ -300,6 +330,32 @@ func extractFile(f *zip.File, installPath string) error {
 	_, err = io.Copy(out, rc)
 	if err != nil {
 		return fmt.Errorf("writing file contents: %w", err)
+	}
+
+	return nil
+}
+
+// moveTNSNamesFile moves the tnsnames.ora file from the source to the destination path
+// It checks if the source file exists, creates the destination directory if it doesn't exist,
+// and then moves the file. If any error occurs, it returns an appropriate error.
+// This function is used to ensure that the tnsnames.ora file is correctly placed in
+// the TNS_ADMIN directory after installation.
+// It is typically called after the installation process to ensure that the Oracle Net configuration
+// file is in the correct location for the Oracle Instant Client to function properly.
+func moveTNSNamesFile(from, to string) error {
+	// Check if the source file exists
+	if _, err := os.Stat(from); os.IsNotExist(err) {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "source tnsnames.ora file does not exist")
+	}
+
+	// Create the destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(to), 0777); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "creating destination directory for tnsnames.ora")
+	}
+
+	// Move the tnsnames.ora file to the destination
+	if err := os.Rename(from, to); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "moving tnsnames.ora file")
 	}
 
 	return nil
