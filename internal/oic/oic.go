@@ -62,7 +62,7 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 
 	// Check if the TNS_ADMIN directory contains tnsnames.ora file
 	// This file is essential for Oracle Net configuration and should exist in the TNS_ADMIN directory
-	if _, err := os.Stat(filepath.Join(tnsAdminPath, "tnsnames.ora")); errors.Is(err, os.ErrNotExist) || err != nil {
+	if _, err := os.Stat(filepath.Join(tnsAdminPath, "tnsnames.ora")); err != nil || errors.Is(err, os.ErrNotExist) {
 		fmt.Println("TNS_ADMIN directory does not contain a tnsnames.ora file, indicating a misconfigured existing installation.")
 		fmt.Println("\nAn existing Oracle InstantClient installation was found, but appears misconfigured.")
 		return true, nil
@@ -77,7 +77,6 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 // It cleans up the environment variables and removes the installation directory
 func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = ensureContext(ctx)
-	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
 	}
@@ -89,20 +88,20 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 			fmt.Println("OCI_LIB64 environment variable not found, skipping removal from PATH.")
 			return nil
 		}
-		return errs.HandleError(err, errs.ErrorTypeEnvironment, "getting OCI_LIB64 environment variable")
+		return err
 	}
 	if err := env.RemoveFromPath(envVar); err != nil {
-		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing OCI_LIB64 from PATH")
+		return err
 	}
 
 	// Remove OCI_LIB64 environment variable
 	if err := env.RemoveEnvVar("OCI_LIB64"); err != nil {
-		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing OCI_LIB64")
+		return err
 	}
 
 	// Remove TNS_ADMIN environment variable
 	if err := env.RemoveEnvVar("TNS_ADMIN"); err != nil {
-		return errs.HandleError(err, errs.ErrorTypeEnvironment, "removing TNS_ADMIN")
+		return err
 	}
 
 	// Remove installation directory with safety checks
@@ -111,8 +110,8 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 	}
 
 	// Reset the installation path in the config to the base directory of existing installation
-	if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); errs.IsErrorType(err, errs.ErrorTypeValidation) {
-		return errs.HandleError(err, errs.ErrorTypeInstall, "resetting installation path in config")
+	if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); err != nil {
+		return err
 	}
 
 	return nil

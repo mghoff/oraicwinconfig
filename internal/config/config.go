@@ -47,8 +47,7 @@ func (c *InstallConfig) SetDownloadsPath(path string) error {
 		return errs.HandleError(
 			fmt.Errorf("downloads path cannot be empty or invalid"),
 			errs.ErrorTypeValidation,
-			"setting downloads path",
-		)
+			"setting downloads path")
 	}
 	c.DownloadsPath = path
 	return nil
@@ -60,8 +59,7 @@ func (c *InstallConfig) SetInstallPath(path string) error {
 		return errs.HandleError(
 			fmt.Errorf("install path cannot be empty or invalid"),
 			errs.ErrorTypeValidation,
-			"setting install path",
-		)
+			"setting install path")
 	}
 	c.InstallPath = path
 	return nil
@@ -74,15 +72,13 @@ func (c *InstallConfig) Validate() error {
 		return errs.HandleError(
 			fmt.Errorf("install path cannot be empty or invalid"),
 			errs.ErrorTypeValidation,
-			"config validation",
-		)
+			"config validation")
 	}
 	if !checkPathValidity(c.DownloadsPath) {
 		return errs.HandleError(
 			fmt.Errorf("downloads path cannot be empty or invalid"),
 			errs.ErrorTypeValidation,
-			"config validation",
-		)
+			"config validation")
 	}
 	return nil
 }

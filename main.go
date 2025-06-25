@@ -89,8 +89,7 @@ func handleInstallLocation(conf *config.InstallConfig) error {
 			return errs.HandleError(
 				fmt.Errorf("installation aborted by user"),
 				errs.ErrorTypeValidation,
-				"user confirmation",
-			)
+				"user confirmation")
 		}
 	}
 	return nil
@@ -99,7 +98,7 @@ func handleInstallLocation(conf *config.InstallConfig) error {
 // handleCurrentInstall checks for an existing Oracle InstantClient installation
 func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	if ok, err := oic.Exists(ctx, conf, env); !ok {
-		fmt.Println("\nNo existing installation found. Proceeding with new installation...")
+		fmt.Println("\nNo existing installation found. Proceeding with default installation...")
 		return nil
 	} else if err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "checking for existing Oracle InstantClient installation")
