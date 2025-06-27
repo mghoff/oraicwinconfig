@@ -124,7 +124,7 @@ func (e *EnvVarManager) AppendToPath(newPath string) error {
 	return e.SetEnvVar("PATH", newFullPath)
 }
 
-// removeFromPath removes a specified path from the PATH environment variable
+// RemoveFromPath removes a specified path from the PATH environment variable
 func (e *EnvVarManager) RemoveFromPath(pathToRemove string) error {
 	currentPath, err := e.GetEnvVar("PATH")
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 	"github.com/mghoff/oraicwinconfig/internal/utils"
 )
 
-// InstallExists checks if Oracle InstantClient is already installed
+// Exists checks if Oracle InstantClient is already installed
 func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) (bool, error) {
 	ctx = utils.EnsureContext(ctx)
 	// Check for context cancellation
@@ -67,7 +67,7 @@ func Exists(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMana
 	return true, nil
 }
 
-// UninstallOracleInstantClient removes the Oracle InstantClient installation
+// Uninstall removes the Oracle InstantClient installation
 // It cleans up the environment variables and removes the installation directory
 func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = utils.EnsureContext(ctx)
@@ -111,7 +111,7 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 	return nil
 }
 
-// InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
+// Install performs the installation and configuration of Oracle Instant Client
 func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarManager) error {
 	ctx = utils.EnsureContext(ctx)
 	if err := ctx.Err(); err != nil {

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// reqUserConfirmation prompts the user for a yes/no confirmation
+// Confirmation prompts the user for a yes/no confirmation 
 // and returns true for 'y' and false for 'n'
 func Confirmation(label string) bool {
 	choices := "y/n"
@@ -36,7 +36,7 @@ func Confirmation(label string) bool {
 	return false
 }
 
-// reqUserInstallPath prompts the user for a valid installation path
+// InstallPath prompts the user for a valid installation path
 // and validates that it is an existing directory
 func InstallPath(label string) string {
 	r := bufio.NewReader(os.Stdin)

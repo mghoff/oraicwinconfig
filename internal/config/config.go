@@ -23,8 +23,7 @@ type InstallConfig struct {
 	Extant				bool   // Indicates if an existing installation was found
 }
 
-// NewDefaultConfig creates a new configuration with default values
-// and returns a pointer to it
+// NewDefaultConfig creates a new configuration with default values and returns a pointer to it
 func New() *InstallConfig {
 	return &InstallConfig{
 		InstallPath: defaultInstallPath,
@@ -43,7 +42,7 @@ func checkPathValidity(path string) bool {
 	return true
 }
 
-// SetDownloadsPath sets the path where the downloaded files will be stored
+// SetDownloadsPath sets the path to where the downloaded zip files will be stored
 func (c *InstallConfig) SetDownloadsPath(path string) error {
 	if !checkPathValidity(path) {
 		return errs.HandleError(
