@@ -98,19 +98,6 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 		return err
 	}
 
-	// Save tnsnames.ora file to user Downloads, if it exists
-	// This is useful for restoring the configuration later during reinstallation
-	if conf.Extant && conf.Overwrite {
-		fmt.Printf("saving tnsnames.ora file to %s...\n", conf.DownloadsPath)
-		utils.MigrateFile(
-			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
-			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
-			false,
-		)
-	} else if conf.Extant && !conf.Overwrite {
-			fmt.Println("Skipping saving tnsnames.ora file as overwrite is not set.")
-	}
-
 	// Remove installation directory with safety checks
 	if err := os.RemoveAll(conf.InstallPath); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "removing installation directory")
@@ -130,7 +117,6 @@ func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMan
 	if err := ctx.Err(); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
 	}
-
 
 	// INSTALLATION STEPS
 	fmt.Println("\nStarting Oracle InstantClient installation...")
@@ -198,7 +184,7 @@ func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMan
 	}
 
 	// Move tnsnames.ora file to TNS_ADMIN directory
-	if conf.Extant && conf.Overwrite {
+	if conf.Extant {
 		fmt.Printf("moving tnsnames.ora from %s to %s\n", filepath.Join(conf.DownloadsPath, "tnsnames.ora"), tnsAdminPath)
 		if err := utils.MigrateFile(
 			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
@@ -207,8 +193,6 @@ func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMan
 		); err != nil {
 			return err
 		}
-	} else if conf.Extant && !conf.Overwrite {
-		fmt.Println("Skipping moving tnsnames.ora file as overwrite is not set.")
 	}
 
 	fmt.Println("\nOracle InstantClient installation and configuration completed successfully!")

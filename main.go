@@ -13,6 +13,7 @@ import (
 	"github.com/mghoff/oraicwinconfig/internal/errs"
 	"github.com/mghoff/oraicwinconfig/internal/input"
 	"github.com/mghoff/oraicwinconfig/internal/oic"
+	"github.com/mghoff/oraicwinconfig/internal/utils"
 	"github.com/mghoff/oraicwinconfig/internal/version"
 )
 
@@ -111,16 +112,33 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 	fmt.Printf("\nThe path of the new installation will be set to the base directory of the existing installation; e.g. %s\n", filepath.Dir(conf.InstallPath))
 
 	if !input.Confirmation("\nDo you wish to overwrite the existing installation?\nSelect") {
-		fmt.Printf("\nExisting installation will be left in place.\nSetting install path to base directory of existing installation: %s\n", filepath.Dir(conf.InstallPath))
+		fmt.Println("\nExisting installation will be left in place.")
+		fmt.Printf("copying tnsnames.ora file to %s for use in new install...\n", conf.DownloadsPath)
+		if err := utils.MigrateFile(
+			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
+			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
+			true,
+		); err != nil {
+			return err
+		}
+		fmt.Printf("setting install path to base directory of existing installation: %s\n", filepath.Dir(conf.InstallPath))
 		if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); err != nil {
 			return err
 		}
 		return nil
 	} else {
-		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
 		if err := conf.SetOverwrite(true); err != nil {
 			return err
 		}
+		fmt.Printf("moving tnsnames.ora file to %s for use in new install...\n", conf.DownloadsPath)
+		if err := utils.MigrateFile(
+			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
+			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
+			false,
+		); err != nil {
+			return err
+		}
+		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
 		if err := oic.Uninstall(ctx, conf, env); err != nil {
 			return err
 		} else {
