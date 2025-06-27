@@ -113,7 +113,7 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 	// This is useful for restoring the configuration later during reinstallation
 	if conf.Extant && conf.Overwrite {
 		fmt.Printf("saving tnsnames.ora file to %s...\n", conf.DownloadsPath)
-		migrateTNSNamesFile(
+		migrateFile(
 			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
 			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
 			false,
@@ -211,7 +211,7 @@ func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMan
 	// Move tnsnames.ora file to TNS_ADMIN directory
 	if conf.Extant && conf.Overwrite {
 		fmt.Printf("moving tnsnames.ora from %s to %s\n", filepath.Join(conf.DownloadsPath, "tnsnames.ora"), tnsAdminPath)
-		if err := migrateTNSNamesFile(
+		if err := migrateFile(
 			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
 			filepath.Join(tnsAdminPath, "tnsnames.ora"),
 			false,
@@ -339,7 +339,7 @@ func extractFile(f *zip.File, installPath string) error {
 
 
 
-func migrateTNSNamesFile(from, to string, copy bool) error {
+func migrateFile(from, to string, copy bool) error {
 	if copy {
 		if err := copyFile(from, to); err != nil {
 			return err
