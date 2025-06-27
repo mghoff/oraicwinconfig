@@ -21,7 +21,6 @@ type InstallConfig struct {
 	SdkFile       string // Name of the SDK file to be downloaded
 	BaseURL       string // Base URL for downloading the files
 	Extant				bool   // Indicates if an existing installation was found
-	Overwrite		 	bool   // Indicates if the existing installation should be overwritten
 }
 
 // NewDefaultConfig creates a new configuration with default values
@@ -33,7 +32,6 @@ func New() *InstallConfig {
 		SdkFile:     sdkFileName,
 		BaseURL:     baseDownloadURL,
 		Extant:      false,
-		Overwrite:   false,
 	}
 }
 
@@ -78,18 +76,6 @@ func (c *InstallConfig) SetExtant(extant bool) error{
 			"setting extant value")
 	}
 	c.Extant = extant
-	return nil
-}
-
-// SetOverwrite sets the overwrite flag indicating if the existing installation should be overwritten
-func (c *InstallConfig) SetOverwrite(overwrite bool) error {
-	if overwrite != true && overwrite != false {
-		return errs.HandleError(
-			fmt.Errorf("overwrite must be a boolean value"),
-			errs.ErrorTypeValidation,
-			"setting overwrite value")
-	}
-	c.Overwrite = overwrite
 	return nil
 }
 

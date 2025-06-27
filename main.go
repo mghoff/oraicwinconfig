@@ -127,9 +127,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		}
 		return nil
 	} else {
-		if err := conf.SetOverwrite(true); err != nil {
-			return err
-		}
+		fmt.Println("\nExisting installation will be overwritten.")
 		fmt.Printf("moving tnsnames.ora file to %s for use in new install...\n", conf.DownloadsPath)
 		if err := utils.MigrateFile(
 			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
