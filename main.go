@@ -77,10 +77,6 @@ func main() {
 
 // handleInstallLocation handles the user interaction for user-defined installation path
 func handleInstallLocation(conf *config.InstallConfig) error {
-	if conf.Overwrite {
-		fmt.Printf("\nInstallation path set to base directory of existing installation: %s\n", conf.InstallPath)
-		return nil
-	}
 	if ok := input.Confirmation("\nAccept the suggested install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
 		if change := input.Confirmation("Are you sure you wish to change the suggested install location?\nSelect"); change {
 			newPath := input.InstallPath("Enter desired install path below... Note: this path must be an existing valid directory\n")
@@ -113,6 +109,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 
 	if !input.Confirmation("\nDo you wish to overwrite the existing installation?\nSelect") {
 		fmt.Println("\nExisting installation will be left in place.")
+
 		fmt.Printf("copying tnsnames.ora file to %s for use in new install...\n", conf.DownloadsPath)
 		if err := utils.MigrateFile(
 			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
@@ -121,6 +118,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		); err != nil {
 			return err
 		}
+		
 		fmt.Printf("setting install path to base directory of existing installation: %s\n", filepath.Dir(conf.InstallPath))
 		if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); err != nil {
 			return err
@@ -128,6 +126,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		return nil
 	} else {
 		fmt.Println("\nExisting installation will be overwritten.")
+		
 		fmt.Printf("moving tnsnames.ora file to %s for use in new install...\n", conf.DownloadsPath)
 		if err := utils.MigrateFile(
 			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
@@ -136,6 +135,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		); err != nil {
 			return err
 		}
+		
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
 		if err := oic.Uninstall(ctx, conf, env); err != nil {
 			return err
