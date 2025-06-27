@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatal("error getting user Downloads directory: ", err)
 	}
-	if err := conf.SetDownloadsPath(downloadsPath); errs.IsErrorType(err, errs.ErrorTypeValidation) {
+	if err := conf.SetDownloadsPath(downloadsPath); err != nil {
 		log.Fatal("error setting Downloads path: ", err)
 	}
 
@@ -84,7 +84,7 @@ func handleInstallLocation(conf *config.InstallConfig) error {
 	if ok := input.Confirmation("\nAccept the suggested install location?\n - " + conf.InstallPath + "\nSelect"); !ok {
 		if change := input.Confirmation("Are you sure you wish to change the suggested install location?\nSelect"); change {
 			newPath := input.InstallPath("Enter desired install path below... Note: this path must be an existing valid directory\n")
-			if err := conf.SetInstallPath(newPath); errs.IsErrorType(err, errs.ErrorTypeValidation) {
+			if err := conf.SetInstallPath(newPath); err != nil {
 				return errs.HandleError(err, errs.ErrorTypeValidation, "setting user-defined install path")
 			}
 			fmt.Printf("install path set to: %s\n", conf.InstallPath)
