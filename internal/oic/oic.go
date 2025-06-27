@@ -113,9 +113,10 @@ func Uninstall(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarM
 	// This is useful for restoring the configuration later during reinstallation
 	if conf.Extant && conf.Overwrite {
 		fmt.Printf("saving tnsnames.ora file to %s...\n", conf.DownloadsPath)
-		moveTNSNamesFile(
+		migrateTNSNamesFile(
 			filepath.Join(conf.InstallPath, "network", "admin", "tnsnames.ora"),
 			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
+			false,
 		)
 	} else if conf.Extant && !conf.Overwrite {
 			fmt.Println("Skipping saving tnsnames.ora file as overwrite is not set.")
@@ -210,9 +211,10 @@ func Install(ctx context.Context, conf *config.InstallConfig, env *env.EnvVarMan
 	// Move tnsnames.ora file to TNS_ADMIN directory
 	if conf.Extant && conf.Overwrite {
 		fmt.Printf("moving tnsnames.ora from %s to %s\n", filepath.Join(conf.DownloadsPath, "tnsnames.ora"), tnsAdminPath)
-		if err := moveTNSNamesFile(
+		if err := migrateTNSNamesFile(
 			filepath.Join(conf.DownloadsPath, "tnsnames.ora"),
 			filepath.Join(tnsAdminPath, "tnsnames.ora"),
+			false,
 		); err != nil {
 			return err
 		}
@@ -335,28 +337,67 @@ func extractFile(f *zip.File, installPath string) error {
 	return nil
 }
 
-// moveTNSNamesFile moves the tnsnames.ora file from the source to the destination path
-// It checks if the source file exists, creates the destination directory if it doesn't exist,
-// and then moves the file. If any error occurs, it returns an appropriate error.
-// This function is used to ensure that the tnsnames.ora file is correctly placed in
-// the TNS_ADMIN directory after installation.
-// It is typically called after the installation process to ensure that the Oracle Net configuration
-// file is in the correct location for the Oracle Instant Client to function properly.
-func moveTNSNamesFile(from, to string) error {
+
+
+func migrateTNSNamesFile(from, to string, copy bool) error {
+	if copy {
+		if err := copyFile(from, to); err != nil {
+			return err
+		}
+	} else {
+		if err := moveFile(from, to); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+
+func moveFile(src, dst string) error {
 	// Check if the source file exists
-	if _, err := os.Stat(from); os.IsNotExist(err) {
+	if _, err := os.Stat(src); os.IsNotExist(err) {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "source tnsnames.ora file does not exist")
 	}
 
 	// Create the destination directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(to), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "creating destination directory for tnsnames.ora")
 	}
 
 	// Move the tnsnames.ora file to the destination
-	if err := os.Rename(from, to); err != nil {
+	if err := os.Rename(src, dst); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeInstall, "moving tnsnames.ora file")
 	}
+
+	return nil
+}
+
+
+func copyFile(src, dst string) error {
+	// open source file
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "opening tnsnames.ora file")
+	}
+	defer srcFile.Close()
+
+	// create destination file
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "creating tnsnames.ora copy file")
+	}
+	defer dstFile.Close()
+
+	// copy contents
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "copying tnsnames.ora contents")
+	}
+	// sync
+	err = dstFile.Sync()
+	if  err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "syncing destination tnsnames.ora file")
+	} 
 
 	return nil
 }
