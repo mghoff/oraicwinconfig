@@ -105,7 +105,7 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 		fmt.Println("\nNo existing installation found. Proceeding with default installation...")
 		return nil
 	} else if err != nil {
-		return errs.HandleError(err, errs.ErrorTypeInstall, "checking for existing Oracle InstantClient installation")
+		return err
 	}
 	
 	fmt.Printf("\nThe path of the new installation will be set to the base directory of the existing installation; e.g. %s\n", filepath.Dir(conf.InstallPath))
@@ -113,16 +113,16 @@ func handleCurrentInstall(ctx context.Context, conf *config.InstallConfig, env *
 	if !input.Confirmation("\nDo you wish to overwrite the existing installation?\nSelect") {
 		fmt.Printf("\nExisting installation will be left in place.\nSetting install path to base directory of existing installation: %s\n", filepath.Dir(conf.InstallPath))
 		if err := conf.SetInstallPath(filepath.Dir(conf.InstallPath)); err != nil {
-			return errs.HandleError(err, errs.ErrorTypeValidation, "setting install path to existing installation base directory")
+			return err
 		}
 		return nil
 	} else {
 		fmt.Println("Uninstalling existing Oracle InstantClient installation...")
 		if err := conf.SetOverwrite(true); err != nil {
-			return errs.HandleError(err, errs.ErrorTypeValidation, "setting overwrite flag for existing installation")
+			return err
 		}
 		if err := oic.Uninstall(ctx, conf, env); err != nil {
-			return errs.HandleError(err, errs.ErrorTypeInstall, "uninstalling existing Oracle InstantClient")
+			return err
 		} else {
 			fmt.Println("Existing Oracle InstantClient installation successfully removed.")
 			fmt.Printf("Installation path reset to: %s\n", conf.InstallPath)
