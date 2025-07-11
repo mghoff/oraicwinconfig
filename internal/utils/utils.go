@@ -1,105 +1,29 @@
-package install
+package utils
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
+	"path/filepath"
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
-	"context"
 
-	"github.com/mghoff/oraicwinconfig/internal/config"
-	"github.com/mghoff/oraicwinconfig/internal/env"
 	"github.com/mghoff/oraicwinconfig/internal/errs"
 )
 
-// InstallOracleInstantClient performs the installation and configuration of Oracle Instant Client
-func InstallOracleInstantClient(ctx context.Context, config *config.InstallConfig, env *env.EnvVarManager) error {
+// ensureContext returns context.Background() if ctx is nil, otherwise returns ctx.
+func EnsureContext(ctx context.Context) context.Context {
 	if ctx == nil {
-		ctx = context.Background()
+		return context.Background()
 	}
-	// Check for context cancellation
-	if err := ctx.Err(); err != nil {
-		return errs.HandleError(err, errs.ErrorTypeInstall, "context cancellation")
-	}
-
-
-	// INSTALLATION STEPS
-	fmt.Println("Starting Oracle InstantClient installation...")
-	// Set paths for downloads
-	pkgZipPath := filepath.Join(config.DownloadsPath, config.PkgFile)
-	sdkZipPath := filepath.Join(config.DownloadsPath, config.SdkFile)
-
-	// Download package files
-	fmt.Printf("downloading package: %s...\n", pkgZipPath)
-	if err := downloadOracleInstantClient(ctx, config.BaseURL+config.PkgFile, pkgZipPath); err != nil {
-		return err
-	}
-
-	// Download SDK files
-	fmt.Printf("downloading SDK: %s...\n", sdkZipPath)
-	if err := downloadOracleInstantClient(ctx, config.BaseURL+config.SdkFile, sdkZipPath); err != nil {
-		return err
-	}
-
-	// Unzip package files
-	fmt.Printf("extracting: %s to %s\n", pkgZipPath, config.InstallPath)
-	pkgDir, err := unzipOracleInstantClient(pkgZipPath, config.InstallPath)
-	if err != nil {
-		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip package")
-	}
-
-	// Unzip SDK files
-	fmt.Printf("extracting: %s\n", sdkZipPath)
-	sdkDir, err := unzipOracleInstantClient(sdkZipPath, config.InstallPath)
-	if err != nil {
-		return errs.HandleError(err, errs.ErrorTypeInstall, "unzip SDK")
-	}
-
-	// Verify version match
-	if pkgDir != sdkDir {
-		return errs.HandleError(
-			fmt.Errorf("package version (%s) does not match SDK version (%s)", pkgDir, sdkDir),
-			errs.ErrorTypeInstall,
-			"version verification",
-		)
-	}
-	fmt.Println("package and SDK versions match, continuing...")
-
-	// CONFIGURATION STEPS
-	fmt.Println("Configuring Oracle InstantClient...")
-
-	// Set OCI_LIB64 environment variable
-	ociLibPath := filepath.Join(config.InstallPath, pkgDir)
-	fmt.Printf("setting OCI_LIB64=%s\n", ociLibPath)
-	if err := env.SetEnvVar("OCI_LIB64", ociLibPath); err != nil {
-		return err
-	}
-
-	// Add OCI_LIB64 to PATH
-	fmt.Printf("updating PATH to include %s\n", ociLibPath)
-	if err := env.AppendToPath(ociLibPath); err != nil {
-		return err
-	}
-
-	// Set TNS_ADMIN environment variable
-	tnsAdminPath := filepath.Join(ociLibPath, "network", "admin")
-	fmt.Printf("setting TNS_ADMIN=%s\n", tnsAdminPath)
-	if err := env.SetEnvVar("TNS_ADMIN", tnsAdminPath); err != nil {
-		return err
-	}
-
-	fmt.Println("Oracle InstantClient installation completed successfully!")
-	return nil
+	return ctx
 }
 
-// downloadOracleInstantClient downloads the Oracle Instant Client zip file from the specified URL
-func downloadOracleInstantClient(ctx context.Context, urlPath, downloadsPath string) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+// downloadZip downloads the Oracle Instant Client zip file from the specified URL
+func DownloadZip(ctx context.Context, urlPath, downloadsPath string) error {
+	ctx = EnsureContext(ctx)
 	// Check for context cancellation
 	if err := ctx.Err(); err != nil {
 		return errs.HandleError(err, errs.ErrorTypeDownload, "context cancellation")
@@ -136,9 +60,9 @@ func downloadOracleInstantClient(ctx context.Context, urlPath, downloadsPath str
 	return nil
 }
 
-// unzipOracleInstantClient extracts the Oracle Instant Client zip file to the specified destination path
+// unZip extracts the Oracle Instant Client zip file to the specified destination path
 // and returns the directory name of the extracted files
-func unzipOracleInstantClient(downloadsPath, installPath string) (string, error) {
+func UnZip(downloadsPath, installPath string) (string, error) {
 	// Create base install directory
 	if err := os.MkdirAll(installPath, 0777); err != nil {
 		return "", errs.HandleError(err, errs.ErrorTypeInstall, "creating base installation directory")
@@ -204,6 +128,70 @@ func extractFile(f *zip.File, installPath string) error {
 	if err != nil {
 		return fmt.Errorf("writing file contents: %w", err)
 	}
+
+	return nil
+}
+
+// migrate (move or copy file from source to destination)
+func MigrateFile(from, to string, copy bool) error {
+	if copy {
+		if err := copyFile(from, to); err != nil {
+			return err
+		}
+	} else {
+		if err := moveFile(from, to); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// move file from source to destination
+func moveFile(src, dst string) error {
+	// Check if the source file exists
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "source tnsnames.ora file does not exist")
+	}
+
+	// Create the destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "creating destination directory for tnsnames.ora")
+	}
+
+	// Move the tnsnames.ora file to the destination
+	if err := os.Rename(src, dst); err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "moving tnsnames.ora file")
+	}
+
+	return nil
+}
+
+// copy file from source to destination
+func copyFile(src, dst string) error {
+	// open source file
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "opening tnsnames.ora file")
+	}
+	defer srcFile.Close()
+
+	// create destination file
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "creating tnsnames.ora copy file")
+	}
+	defer dstFile.Close()
+
+	// copy contents
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "copying tnsnames.ora contents")
+	}
+	// sync
+	err = dstFile.Sync()
+	if  err != nil {
+		return errs.HandleError(err, errs.ErrorTypeInstall, "syncing destination tnsnames.ora file")
+	} 
 
 	return nil
 }
