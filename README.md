@@ -17,7 +17,7 @@ This package aims to do just that.
 ## Requirements
 
   + Windows 11 OS
-  + A `tnsnames.ora` file containing Oracle connection details
+  + **Optional:* A `tnsnames.ora` file containing Oracle connection details
 
 ## Installation
 
@@ -42,13 +42,13 @@ This executable will perform the following...
 1. Check for existing installation of Oracle InstantClient by looking for the User Environment Variables: `OCI_LIB64` and `TNS_NAMES`.
     + If no existing installation is found, the user will be prompted to accept the default installation directory: `C:/OraClient`.
     + Upon discovering an existing installation, the user will be prompted to overwrite the existing installation.
-      + If you choose to overwrite, the existing installation directory and its respective environment variables will be removed completely.
-      + If you choose NOT to overwrite, the existing installation will remain and the new installation will be adjacently installed into the base directory of the existing. `OCI_LIB64` and `TNS_NAMES` environment variable values will be overwritten with the new installation paths, and the new `OCI_LIB64` path will be added to the `PATH` User Environment Variable. **You must then copy your `tnsnames.ora` file from the old installation to the new installation following completion.**
-1. Following a user prompt to accept the suggested installation directory, the Windows-specific `Oracle Instant Client Basic Lite` package and SDK zip files will be downloaded into the user's Downloads folder.
-2. Unzip the above files into the specified installation directory.
-3. Add the installation directory to the `PATH` User Environment Variable.
-4. Create or reset User Environment Variables (`OCI_LIB64` and `TNS_NAMES`) and assign their respective directory paths.
-    + **Again,** If you have a `tnsnames.ora` file, you must save a copy outside of the installation directory and then copy it to the directory specified by the `TNS_NAMES` environment variable, following a successful installation.
+      + If you choose to overwrite, the existing installation directory and its respective environment variables will be removed completely. In the case of the `OCI_LIB64` and `TNS_ADMIN` user environment variables, the will be overwritten with the paths specified by new installation.
+      + If you choose NOT to overwrite, the existing installation will remain and the new installation will be adjacently installed into the base directory of the existing installation. `OCI_LIB64` and `TNS_NAMES` environment variable values will be overwritten with the new installation paths, and the new `OCI_LIB64` path will be added to the `PATH` User Environment Variable. *Note:* The old `OCI_LIB64` directory will remain  in the `PATH` list. 
+      + **FINAL NOTE:** With either choice above, if a valid `tnsnames.ora` file is found, it will be temporarily copied the user Downloads folder and then moved to the proper subdirectory of the new installation.
+2. Download the Windows-specific `Oracle Instant Client Basic Lite` package and SDK zip files into the user Downloads folder.
+3. Unzip the above files into the specified installation directory.
+4. Add the installation directory to the `PATH` User Environment Variable.
+5. Create and assign *or* reset the `OCI_LIB64` and `TNS_NAMES` User Environment Variables.
 
 Following successful installation and configuration, you should be able to use `RTools` to build `Roracle` from source...
 
