@@ -1,8 +1,8 @@
 # oraicwinconfig
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
-A Go CLI tool to install and configure [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html) on Windows 11 for use by Oracle's very own R package: [ROracle](https://www.oracle.com/database/technologies/appdev/roracle.html)
+A Go-based CLI tool to install and configure [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html) on Windows 11 for use by Oracle's very own `R` package: [ROracle](https://www.oracle.com/database/technologies/appdev/roracle.html)
 
 ## Background
 
@@ -17,7 +17,7 @@ This package aims to do just that.
 ## Requirements
 
   + Windows 11 OS
-  + A `tnsnames.ora` file containing Oracle connection details
+  + **Optional:* A `tnsnames.ora` file containing Oracle connection details
 
 ## Installation
 
@@ -39,11 +39,16 @@ Following a successful build, a `.\bin` folder will have been created which cont
 ## Details:
 
 This executable will perform the following...
-1. Download into the user's Downloads folder the Windows-specific `Oracle Instant Client Basic Lite` package and SDK zip files.
-2. Unzip the above files into either the specified installation directory.
-3. Add the installation directory to the `PATH` User Environment Variable.
-4. Create two new User Environment Variables (`OCI_LIB64` and `TNS_NAMES`) and assign their respective directory paths.
-    + **Note:** If you have a `tnsnames.ora` file, you must copy it to the directory specified by the `TNS_NAMES` environment variable.
+1. Check for existing installation of Oracle InstantClient by looking for the User Environment Variables: `OCI_LIB64` and `TNS_NAMES`.
+    + If no existing installation is found, the user will be prompted to accept the default installation directory: `C:/OraClient`.
+    + Upon discovering an existing installation, the user will be prompted to overwrite the existing installation.
+      + If you choose to overwrite, the existing installation directory and its respective environment variables will be removed completely. In the case of the `OCI_LIB64` and `TNS_ADMIN` user environment variables, the will be overwritten with the paths specified by new installation.
+      + If you choose NOT to overwrite, the existing installation will remain and the new installation will be adjacently installed into the base directory of the existing installation. `OCI_LIB64` and `TNS_NAMES` environment variable values will be overwritten with the new installation paths, and the new `OCI_LIB64` path will be added to the `PATH` User Environment Variable. *Note:* The old `OCI_LIB64` directory will remain  in the `PATH` list. 
+      + **FINAL NOTE:** With either choice above, if a valid `tnsnames.ora` file is found, it will be temporarily copied the user Downloads folder and then moved to the proper subdirectory of the new installation.
+2. Download the Windows-specific `Oracle Instant Client Basic Lite` package and SDK zip files into the user Downloads folder.
+3. Unzip the above files into the specified installation directory.
+4. Add the installation directory to the `PATH` User Environment Variable.
+5. Create and assign *or* reset the `OCI_LIB64` and `TNS_NAMES` User Environment Variables.
 
 Following successful installation and configuration, you should be able to use `RTools` to build `Roracle` from source...
 
@@ -51,3 +56,5 @@ In R, run:
 ```
 install.packages("path/to/ROracle.zip", repos = NULL, type = "source")
 ```
+
+**Note:** If updating/upgrading your existing version of `Oracle InstantClient` for use with `ROracle`, you will need to rebuild from source to properly set the environment variables within the `R` package.
